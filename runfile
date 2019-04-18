@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -ue
+
+# Runfile script
+
+USAGE="Usage: run -e|vim|mvim|install|uninstall|etc..."
+
+if (( $# )); then
+    runcmd="$1"
+    shift
+else
+    echo "$USAGE"
+    exit 1
+fi
+
+
+# Add run commands as switch cases below. Do not make edits
+# outside of case blocks. Note: Optional args are available
+# as "${@}". If used, consider the first line in the block
+# as a usage statement.
+
+
+case "$runcmd" in
+
+vim)
+    if [[ -f Session.vim ]]; then
+        vim -S Session.vim
+    else
+        vim .
+    fi
+    ;;
+
+mvim)
+    if [[ -f Session.vim ]]; then
+        mvim -S Session.vim &>/dev/null
+    else
+        mvim . &>/dev/null
+    fi
+    ;;
+
+install) pip install --no-deps -e "$HOME/code/toolbox" ;;
+
+uninstall) pip uninstall -y toolbox ;;
+
+tmux) tmux new-session -A -s toolbox ;;
+
+finder) open . -a finder ;;
+
+tests) py.test -q tests ;;
+
+*)
+    echo $USAGE
+    exit 1
+    ;;
+
+esac
