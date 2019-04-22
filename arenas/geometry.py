@@ -28,7 +28,7 @@ from .svg import load_environment
 from .types import *
 
 
-MAPDIR = os.path.join(DATADIR, 'maps')
+MAPDIR = os.path.join(DATADIR, 'geometric-maps')
 ALPHA = 10.0
 K_H = 20.0
 COLORMAP = 'gray_r'
