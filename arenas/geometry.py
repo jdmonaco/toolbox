@@ -463,7 +463,7 @@ class EnvironmentGeometry(object):
         with self.store as df:
             for name in names:
                 if rd.has_node(df, f'/{name}'):
-                    df.remove_node(f'/{name}')
+                    df.remove_node(f'/{name}', recursive=True)
                     delattr(self, name)
                     removed.append(f'{name}')
 
