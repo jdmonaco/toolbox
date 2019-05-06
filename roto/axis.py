@@ -83,45 +83,49 @@ def textlabel(ax, text, side='right', **kwds):
     plt.draw_if_interactive()
     return h
 
+def make_panels(position, projection={}):
+    """Create axes with customized positions mapped to keys
+
+    The position description should be a mapping (dict) from keys to position
+    (l, b, w, h) rects, subplot (r,c,N) tuples, or subplot integer codes (e.g.,
+    221). The specified axes are created in the current figure and a mapping
+    from keys to subplot axes is returned.
+
+    Optionally, non-standard axes projections ('3d', 'polar') can be specified
+    in the projection dict.
+    """
+    f = plt.gcf()
+    f.clf()
+    axdict = {}
+    if '3d' in list(projection.values()):
+        from mpl_toolkits.mplot3d import Axes3D
+    for k in position:
+        pos = position[k]
+        proj = projection.get(k, 'rectilinear')
+        if np.iterable(pos) and len(pos) == 3:
+            axdict[k] = f.add_subplot(*pos, projection=proj)
+        elif np.iterable(pos) and len(pos) == 4:
+            axdict[k] = f.add_axes(pos, projection=proj)
+        elif type(pos) is int:
+            axdict[k] = f.add_subplot(pos, projection=proj)
+        else:
+            raise ValueError('bad subplot/axes: %s'%pos)
+    return axdict
+
 
 class AxesList(list):
+
+    """
+    Pipeline-able list of Axes objects.
+    """
 
     def add_figure(self, f=None):
         if f is None:
             f = plt.gcf()
-        elif type(f) is int:
-            f = plt.figure(2)
+        elif type(f) in (int,str):
+            f = plt.figure(f)
         self.extend([a for a in f.get_children() if hasattr(a, "draw_artist")])
-
-    def make_panels(self, position, projection={}):
-        """Create axes with customized positions mapped to keys
-
-        The position description should be a mapping (dict) from keys to position
-        (l, b, w, h) rects, subplot (r,c,N) tuples, or subplot integer codes (e.g.,
-        221). The specified axes are created in the current figure and a mapping
-        from keys to subplot axes is returned.
-
-        Optionally, non-standard axes projections ('3d', 'polar') can be specified
-        in the projection dict.
-        """
-        f = plt.gcf()
-        f.clf()
-        axdict = {}
-        if '3d' in list(projection.values()):
-            from mpl_toolkits.mplot3d import Axes3D
-        for k in position:
-            pos = position[k]
-            proj = projection.get(k, 'rectilinear')
-            if np.iterable(pos) and len(pos) == 3:
-                axdict[k] = f.add_subplot(*pos, projection=proj)
-            elif np.iterable(pos) and len(pos) == 4:
-                axdict[k] = f.add_axes(pos, projection=proj)
-            elif type(pos) is int:
-                axdict[k] = f.add_subplot(pos, projection=proj)
-            else:
-                raise ValueError('bad subplot/axes: %s'%pos)
-        self.extend(list(axdict.values()))
-        return axdict
+        return self
 
     def make_grid(self, shape):
         """Create a grid of subplots in the current figure, based on either the
@@ -143,15 +147,15 @@ class AxesList(list):
                 if panel > N:
                     break
                 plt.subplot(rows, cols, panel)
-        self.add_figure(f)
+        return self.add_figure(f)
 
-    def bounding_box(self):
+    def _bounding_box(self):
         lims = np.array([ax.axis() for ax in self]).T
         left, right = lims[0].min(), lims[1].max()
         bottom, top = lims[2].min(), lims[3].max()
         return left, right, bottom, top
 
-    def add_padding(self, bbox, factor=0.1):
+    def _add_padding(self, bbox, factor=0.1):
         dx, dy = bbox[1]-bbox[0], bbox[3]-bbox[2]
         left, right = bbox[0]-dx*factor, bbox[1]+dx*factor
         bottom, top = bbox[2]-dy*factor, bbox[3]+dy*factor
@@ -163,9 +167,9 @@ class AxesList(list):
         return self.normalize(padding=padding, xaxis=False)
 
     def normalize(self, padding=None, xaxis=True, yaxis=True):
-        bbox = self.bounding_box()
+        bbox = self._bounding_box()
         if padding:
-            bbox = self.add_padding(bbox, factor=float(padding))
+            bbox = self._add_padding(bbox, factor=float(padding))
         for ax in self:
             if xaxis:
                 ax.set(xlim=bbox[:2])
@@ -207,7 +211,7 @@ class AxesList(list):
         return self
 
     def gallery(self):
-        self.equal().normalize().off()
+        return self.equal().normalize().off()
 
     def draw(self):
         plt.ion()
