@@ -1,19 +1,13 @@
 """
-Simple container for the tools packages.
+Values that may be needed by toolbox subpackages.
 """
 
 
-VERSION = "0.1.2"
+__version__ = "0.1.2"
 
 
 import os as _os
 import sys as _sys
-
-import pouty
-import roto
-import maps
-import analyze
-import tenko
 
 
 HOME = _os.getenv('HOME')
