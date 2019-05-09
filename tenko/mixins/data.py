@@ -65,7 +65,7 @@ class AttrDict(object):
 
 @decorator
 def step(_f_, *args, **kwargs):
-    """Declare a method as a compute step in this context."""
+    """Declare a subclass method as an analysis step in this context."""
     self = args[0]
     status = { 'OK': False }
     self._step_enter(_f_, args, kwargs)
