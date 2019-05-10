@@ -784,26 +784,36 @@ class AbstractBaseContext(object):
         return n.strip().lower().replace(' ', '_').replace('-', '_').replace(
                 '.', '_')
 
-    def datapath(self, *path, root=None):
+    def datapath(self, *path, version=None, desc=None, classtag=None,
+        step=None, tag=None, root=None):
         """An HDF data path anchored to a versioned & run-tagged root group."""
-        if root is None:
-            root = '/'
-            if self._lastcall is not None:
-                base = 'v{}'.format(self._nat(self._version))
-                if self._desc is not None:
-                    base += '__{}'.format(self._nat(self._desc))
-
-                run = self._lastcall['step']
-                if self._tag is not None:
-                    run += '__cls_{}'.format(self._nat(self._tag))
-                if self._lastcall['tag'] is not None:
-                    run += '__run_{}'.format(self._nat(self._lastcall['tag']))
-
-                root = tpath.join(root, base, run)
-        else:
+        if root is not None:
             root = tpath.join('/', root)
+            return tpath.join(root, *path)
 
-        return tpath.join(root, *path)
+        # Get step & tag from last run if available
+        _last_step = _last_tag = None
+        if self._lastcall:
+            _last_step = self._lastcall['step']
+            _last_tag = self._lastcall['tag']
+
+        # Select given or current values of path components
+        Vers = version or self._version
+        Desc = desc or self._desc
+        Step = step or _last_step
+        Ctag = classtag or self._tag
+        Rtag = tag or _last_tag
+
+        assert Step is not None, "missing step name for data"
+
+        # Construct the path components
+        base = 'v{}'.format(self._nat(Vers))
+        if Desc: base += '__{}'.format(self._nat(Desc))
+        run = self._nat(Step)
+        if Ctag: run += '__cls_{}'.format(self._nat(Ctag))
+        if Rtag: run += '__run_{}'.format(self._nat(Rtag))
+
+        return tpath.join('/', base, run, *path)
 
     def has_node(self, *path, root=None):
         """Whether a data node exists."""
