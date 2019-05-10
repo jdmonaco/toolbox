@@ -815,21 +815,21 @@ class AbstractBaseContext(object):
 
         return tpath.join('/', base, run, *path)
 
-    def has_node(self, *path, root=None):
+    def has_node(self, *path, **root):
         """Whether a data node exists."""
-        p = self.datapath(*path, root=root)
+        p = self.datapath(*path, **root)
         try:
             self.get_datafile().get_node(p)
         except tb.NoSuchNodeError as e:
             return False
         return True
 
-    def get_node(self, *path, root=None):
+    def get_node(self, *path, **root):
         """Get a handle to a data node if it exists."""
         if len(path) == 1 and isinstance(path[0], tb.Node):
             p = path[0]._v_pathname
         else:
-            p = self.datapath(*path, root=root)
+            p = self.datapath(*path, **root)
         node = None
         try:
             node = self.get_datafile().get_node(p)
@@ -838,25 +838,25 @@ class AbstractBaseContext(object):
             raise(e)
         return node
 
-    def read_node(self, *path, root=None):
+    def read_node(self, *path, **root):
         """Read the given node."""
-        node = self.get_node(*path, root=root)
+        node = self.get_node(*path, **root)
         if not hasattr(node, 'read'):
             self.out('Node is not readable: {}', node._v_pathname, error=True)
             raise IOError('Data node does not have a read method')
         return node.read()
 
-    def read_array(self, *path, root=None):
+    def read_array(self, *path, **root):
         """Read array data from the given node."""
-        node = self.get_node(*path, root=root)
+        node = self.get_node(*path, **root)
         if not isinstance(node, tb.Array):
             self.out('Not an array: {}', node._v_pathname, error=True)
             raise TypeError('Can only read array data from an array node')
         return node.read()
 
-    def read_dataframe(self, *path, root=None):
+    def read_dataframe(self, *path, **root):
         """Read pandas dataframe from the given node."""
-        node = self.get_node(*path, root=root)
+        node = self.get_node(*path, **root)
         key = node._v_pathname
         self.close_datafile()
         pdf = pd.HDFStore(self._datafile.path())
@@ -868,9 +868,9 @@ class AbstractBaseContext(object):
             pdf.close()
         return df
 
-    def read_simulation(self, *path, root=None):
+    def read_simulation(self, *path, **root):
         """Read Brian simulation output from the data path."""
-        grp = self.get_node(*path, root=root)
+        grp = self.get_node(*path, **root)
         if grp._v_attrs['tenko_type'] != 'brian':
             self.out('Not a Brian simulation: %s' % grp._v_pathname,
                     error=True)
@@ -895,9 +895,9 @@ class AbstractBaseContext(object):
         simdata = namedtuple('%sData' % network_name, dfs.keys())
         return simdata(**dfs)
 
-    def create_group(self, *path, root=None):
+    def create_group(self, *path, **root):
         """Create a new group in the datafile."""
-        where, name = tpath.split(self.datapath(*path, root=root))
+        where, name = tpath.split(self.datapath(*path, **root))
         dfile = self.get_datafile(False)
         try:
             grp = dfile.get_node(where, name=name)
@@ -908,30 +908,30 @@ class AbstractBaseContext(object):
                     prefix='Warning', error=True)
         return grp
 
-    def create_table(self, descr, *path, root=None, **attrs):
+    def create_table(self, descr, *path, attrs={}, **root):
         """Create a new table in the datafile."""
-        self._new_node('table', data.new_table, path, descr, attrs, root,
-                force=True)
-        return self.get_node(*path)
+        return self._new_node('table', data.new_table, path, descr, attrs,
+                root, force=True)
 
-    def save_array(self, arr, *path, root=None, **attrs):
+    def save_array(self, arr, *path, attrs={}, **root):
         """Save a data array to the datafile."""
-        self._new_node('array', data.new_array, path, np.asarray(arr), attrs,
-                root)
+        return self._new_node('array', data.new_array, path, np.asarray(arr),
+                attrs, root)
 
-    def save_dataframe(self, df, *path, root=None, **attrs):
+    def save_dataframe(self, df, *path, attrs={}, **root):
         """Save a pandas Series/DataFrame/Panel to the datafile."""
-        self._new_node('dataframe', data.new_dataframe, path, df, attrs, root,
-                pandas=True)
+        return self._new_node('dataframe', data.new_dataframe, path, df, attrs,
+                root, pandas=True)
 
-    def save_simulation(self, network, *path, root=None, **attrs):
+    def save_simulation(self, network, *path, attrs={}, **root):
         """Save Brian simulation output in group/DataFrame structure."""
         monitors = [obj for obj in network.objects if type(obj) in
                         (br.StateMonitor, br.SpikeMonitor,
                             br.PopulationRateMonitor)]
 
         for mon in monitors:
-            mon_attrs = {'name': mon.name}
+            mon_attrs = {'name': mon.name,
+                'title': f'Network: {network.name}, Monitor: {mon.name}'}
             if hasattr(mon, 'record_variables'):
                 record_variables = [v for v in mon.record_variables
                                         if v not in ('t', 'i')]
@@ -981,20 +981,19 @@ class AbstractBaseContext(object):
 
             self.save_dataframe(pd.DataFrame(data=columns, columns=['t',
                     'neuron'] + record_variables),
-                    *(path + (mon.name,)), root=root,
-                    title='Network: {}, Monitor: {}'.format(network.name,
-                        mon.name), **mon_attrs)
+                    *(path + (mon.name,)), attrs=mon_attrs, **root)
 
         # Write context attributes to parent group of simulation data
         self.get_datafile(False)
-        grp = self.get_node(*path, root=root)
+        grp = self.get_node(*path, **root)
         grp_attrs = dict(tenko_type='brian', name=network.name)
         grp_attrs = merge_two_dicts(grp_attrs, attrs)
         self._write_v_attrs(grp, grp_attrs)
+        return grp
 
     def _new_node(self, ntype, new_node, path, X, attrs, root, pandas=False,
         **kwds):
-        p = self.datapath(*path, root=root)
+        p = self.datapath(*path, **root)
         where, name = tpath.split(p)
         title = attrs.pop('title', snake2title(name))
         kwds.update(createparents=True, title=title)
@@ -1011,6 +1010,7 @@ class AbstractBaseContext(object):
         self.out(f'{pathname} ("{title}")', prefix=f'Saved{ntype.title()}')
         if pandas:
             dfile.close()
+        return node
 
     def _write_v_attrs(self, node, attrs):
         call = self._lastcall
