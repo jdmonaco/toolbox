@@ -170,6 +170,17 @@ class EnvironmentGeometry(object):
 
         return self.X0[ix]
 
+    def maps(self):
+        """
+        Return a attribute-key dict of map-like matrix arrays.
+        """
+        maps = {}
+        for k in self.__dict__.keys():
+            X = getattr(self, k)
+            if isinstance(X, np.ndarray) and X.shape[:2] == self.shape:
+                maps[k] = X
+        return maps
+
     def save_all_maps(self, **imagefmt):
         """
         Save images of all environmental map matrixes.
@@ -188,27 +199,16 @@ class EnvironmentGeometry(object):
         elif M.ndim == 2:
             self._save_matrix_image(M, name, **imagefmt)
 
-    def plot_all_maps(self, **imagefmt):
+    def plot_all_map_figures(self, **imagefmt):
         """
-        Plot all environmental maps.
+        Plot all environment maps in new figure windows.
         """
         for name in self.maps().keys():
             self.plot_map(name, **imagefmt)
 
-    def maps(self):
+    def plot_map_figure(self, name, **imagefmt):
         """
-        Return a attribute-key dict of map-like matrix arrays.
-        """
-        maps = {}
-        for k in self.__dict__.keys():
-            X = getattr(self, k)
-            if isinstance(X, np.ndarray) and X.shape[:2] == self.shape:
-                maps[k] = X
-        return maps
-
-    def plot_map(self, name, **imagefmt):
-        """
-        Plot full-bleed figure window of the named map.
+        Plot full-bleed figure window(s) of the named map.
         """
         assert name in self.maps().keys(), f'not a map name {name}'
         M = getattr(self, name)
@@ -298,7 +298,7 @@ class EnvironmentGeometry(object):
 
     def figure(self, clear=True, tag=None, mapname=None, **imagefmt):
         """
-        Get a figure window with full-bleed axes for plotting maps.
+        Get a figure window and full-bleed axes for plotting maps.
         """
         wasinteractive = plt.isinteractive()
         if wasinteractive:
@@ -309,6 +309,7 @@ class EnvironmentGeometry(object):
         if tag is not None:
             figname += f'+{tag}'
         do_mapshow = False
+        ix = None
         if mapname is not None:
             if type(mapname) is tuple and len(mapname) == 2:
                 mapname, ix = mapname
@@ -320,7 +321,7 @@ class EnvironmentGeometry(object):
                     figname += f'[{ix}]'
                 do_mapshow = True
             else:
-                self.out('Not a map: {}', mapname, error=True)
+                self.out(mapname, prefix='InvalidMapName', error=True)
 
         # Get the figure, clear it, and set the correct size
         f = plt.figure(num=figname, figsize=self.figsize)
@@ -328,15 +329,10 @@ class EnvironmentGeometry(object):
             f.clear()
         f.set_size_inches(self.figsize, forward=True)
 
-        # Create a full-bleed axes object
-        ax = plt.axes([0,0,1,1])
-        ax.axis(self.extent)
-        ax.set_axis_off()
-
-        # Plot a map matrix in the background if one was specified
+        # Plot the map to full-bleed axes
+        ax = plt.axes([0,0,1,1], figure=f)
         if do_mapshow:
-            self.mapshow(Mmap, ax=ax, **imagefmt)
-            ax.axis('equal')
+            self.plot(Mmap, ax=ax, clear=clear, **imagefmt)
 
         if wasinteractive:
             plt.ion()
@@ -345,18 +341,37 @@ class EnvironmentGeometry(object):
 
         return f, ax
 
-    def mapshow(self, Mmap, ax=None, **imagefmt):
+    def plot(self, envmap, index=None, ax=None, clear=True, **imagefmt):
         """
-        Plot a matrix map with imshow and specified image formatting.
+        Plot an environment map to an axes object.
         """
-        assert isinstance(Mmap, np.ndarray), f'parameter is not a matrix'
-        assert Mmap.shape == self.shape, f'matrix is not a map {Mmap.shape}'
         if ax is None:
             ax = plt.gca()
+        if clear:
+            ax.clear()
+
+        if type(envmap) is str:
+            M = getattr(self, envmap)
+        elif isinstance(envmap, np.ndarray):
+            M = envmap
+        if envmap.ndim == 3:
+            if index is None:
+                self.out('Dim >2 arrays require index argument', error=True)
+                return
+            M = M[...,index]
+
+        assert M.shape == self.shape, f'matrix is not a map {Mmap.shape}'
+
         imagefmt.update(asmap=True, forimshow=True)
-        im = ax.imshow(self._rgba_matrix_image(Mmap, **imagefmt),
+        im = ax.imshow(
+                self._rgba_matrix_image(M, **imagefmt),
                 origin='lower', interpolation='nearest',
                 extent=self.extent, zorder=-100)
+
+        ax.axis(self.extent)
+        ax.set_axis_off()
+        ax.axis('equal')
+
         return im
 
     def _save_matrix_image(self, M, name, **imagefmt):
