@@ -233,7 +233,7 @@ class ConsolePrinter(object):
             console = stdout
 
         # Print the colored output to the console
-        pre_len = len(pre)
+        pre_len = len(pre) + 1
         lines = msg.split('\n')
         if self._hanging: self.newline()
         print(pref(pre) + msgf(lines[0].rstrip()), file=console)
