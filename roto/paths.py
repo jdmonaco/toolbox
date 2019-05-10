@@ -7,7 +7,7 @@ import os
 from toolbox import HOME
 
 
-def truncate(p):
+def tilde(p):
     if p.startswith(HOME):
         return f'~{p[len(HOME):]}'
     return p

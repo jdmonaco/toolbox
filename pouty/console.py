@@ -6,6 +6,8 @@ import os
 from sys import stdout, stderr, platform
 from time import strftime
 
+from roto.paths import tilde
+
 from .notifier import Notifier
 
 
@@ -232,15 +234,26 @@ class ConsolePrinter(object):
             msgf = self._msgf
             console = stdout
 
-        # Print the colored output to the console
-        pre_len = len(pre) + 1
-        lines = msg.split('\n')
-        if self._hanging: self.newline()
-        print(pref(pre) + msgf(lines[0].rstrip()), file=console)
-        for line in lines[1:]:
-            print(' ' * pre_len + msgf(line.rstrip()), file=console)
+        # Resolve any hanging lines
+        if self._hanging:
+            self.newline()
 
-        # Timestamped file print if available
+        # Print the first line of the message with possible path truncation
+        lines = msg.split('\n')
+        firstline = lines[0].rstrip()
+        if firstline[0] == '/' and os.path.exists(firstline):
+            firstline = tilde(firstline)
+
+        # Print remaining lines indented and aligned with the first
+        pre_len = len(pre) + 1
+        print(pref(pre) + msgf(firstline), file=console)
+        for line in lines[1:]:
+            line = line.rstrip()
+            if line[0] == '/' and os.path.exists(line):
+                line = tilde(line)
+            print(' ' * pre_len + msgf(line), file=console)
+
+        # Timestamped output to the file if it's open
         if self._isopen():
             if self._timestamp:
                 fmt = '%H:%M:%S %m-%d-%y'
