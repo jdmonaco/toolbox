@@ -19,7 +19,6 @@ from matplotlib.patches import Circle
 
 import roto.data as rd
 from roto.images import uint8color, rgba_to_image, _fill_rgba
-from roto.paths import tilde
 from pouty import ConsolePrinter
 from tenko.store import DataStore
 from toolbox import DATADIR
@@ -79,7 +78,7 @@ class EnvironmentGeometry(object):
                 quiet=True)
 
         if os.path.isfile(self.svgpath):
-            self.out(tilde(self.svgpath), prefix='MapFile')
+            self.out(self.svgpath, prefix='MapFile')
             self.alpha = alpha
             self.k_H = k_H
             self.process()
@@ -104,8 +103,7 @@ class EnvironmentGeometry(object):
         try:
             env = load_environment(self.svgpath)
         except Exception:
-            self.out(tilde(self.svgpath), prefix='LoadError',
-                    error=True)
+            self.out(self.svgpath, prefix='LoadError', error=True)
             return
 
         info = self.info = {k:env[k] for k in ('origin','width','height',
@@ -143,10 +141,9 @@ class EnvironmentGeometry(object):
                 json.dump(info, fd, indent=2, separators=(', ', ': '),
                         sort_keys=True)
         except:
-            self.out(tilde(self.infopath), prefix='SaveError',
-                    error=True)
+            self.out(self.infopath, prefix='SaveError', error=True)
         else:
-            self.out(tilde(self.infopath), prefix='InfoFile')
+            self.out(self.infopath, prefix='InfoFile')
 
     def sample_spawn_points(self, N=1):
         """
