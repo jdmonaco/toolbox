@@ -10,8 +10,14 @@ import os as _os
 import sys as _sys
 
 
+# Basic directory structure
 HOME = _os.getenv('HOME')
 if _sys.platform == 'win32':
     HOME = _os.getenv("USERPROFILE")
 PROJDIR = _os.path.join(HOME, 'projects')
 DATADIR = _os.path.join(HOME, 'data')
+
+
+# Machine information
+IMACPRO_DPI = 217.57
+MACBOOKPRO_DPI = 220.53
