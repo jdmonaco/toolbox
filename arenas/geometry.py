@@ -21,7 +21,7 @@ import roto.data as rd
 from roto.images import uint8color, rgba_to_image, _fill_rgba
 from pouty import ConsolePrinter
 from tenko.store import DataStore
-from toolbox import DATADIR
+from toolbox import DATADIR, IMACPRO_DPI
 
 from .svg import load_environment
 from .types import *
@@ -320,7 +320,7 @@ class EnvironmentGeometry(object):
                 self.out(mapname, prefix='InvalidMapName', error=True)
 
         # Get the figure, clear it, and set the correct size
-        f = plt.figure(num=figname, figsize=self.figsize)
+        f = plt.figure(num=figname, figsize=self.figsize, dpi=IMACPRO_DPI)
         if clear:
             f.clear()
         f.set_size_inches(self.figsize, forward=True)
