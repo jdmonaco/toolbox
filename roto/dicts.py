@@ -2,6 +2,8 @@
 Functions for handling python dicts.
 """
 
+from collections import OrderedDict
+
 
 def merge_two_dicts(a, b):
     """Merge two dicts into one dict, with the second overriding."""
@@ -15,6 +17,52 @@ def merge_dicts(*dicts):
     for newdict in dicts:
         d.update(newdict)
     return d
+
+
+class AttrDict(object):
+
+    """
+    An ordered dictionary with mirrored attribute access.
+    """
+
+    def __init__(self, odict=None):
+        if odict is None:
+            odict = OrderedDict()
+        self.__odict__ = odict
+
+    def __getattr__(self, attr):
+        if attr not in self.__odict__:
+            raise AttributeError("'%s' attribute is not set" % attr)
+        return self.__odict__[attr]
+
+    def __setattr__(self, attr, value):
+        if attr == '__odict__':
+            object.__setattr__(self, attr, value)
+            return
+        self.__odict__[attr] = value
+
+    def __setitem__(self, key, item):
+        if isinstance(key, str):
+            if not key.isidentifier():
+                raise ValueError('key is not a valid name: {}'.format(key))
+        else:
+            raise ValueError('key is not a string: {}'.format(key))
+        self.__odict__[key] = item
+
+    def __getitem__(self, key):
+        return self.__odict__[key]
+
+    def __delitem__(self, key):
+        del self.__odict__[key]
+
+    def __contains__(self, key):
+        return key in self.__odict__
+
+    def __len__(self):
+        return len(self.__odict__)
+
+    def __iter__(self):
+        return iter(self.__odict__)
 
 
 class Tree(dict):
