@@ -21,3 +21,4 @@ DATADIR = _os.path.join(HOME, 'data')
 # Machine information
 IMACPRO_DPI = 217.57
 MACBOOKPRO_DPI = 220.53
+LG_ULTRAWIDE_DPI = 109.68

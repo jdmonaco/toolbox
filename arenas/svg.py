@@ -7,8 +7,10 @@ from operator import itemgetter
 import numpy as np
 import matplotlib as mpl
 
+from toolbox import IMACPRO_DPI
 
-def load_environment(svgfile):
+
+def load_environment(svgfile, dpi=IMACPRO_DPI):
     """
     Parse SVG map file for environmental barriers and special locations.
 
@@ -38,7 +40,6 @@ def load_environment(svgfile):
 
     # Set environmental dimensions
     svg = list(filter(lambda x: x['type'] == 'svg', nodes))[0]
-    dpi = mpl.rcParams['figure.dpi']
     x = round(svg['x'])
     y = round(svg['y'])
     w = int(np.ceil(svg['width']))
