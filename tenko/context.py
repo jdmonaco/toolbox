@@ -13,6 +13,7 @@ except ImportError:
 import inspect
 import datetime
 import subprocess
+from importlib import import_module
 from decorator import decorator
 from collections import OrderedDict, namedtuple
 
@@ -254,12 +255,6 @@ class AbstractBaseContext(object):
         self._save()
         self.printf(f'{self}', color=self._logcolor)
 
-    @staticmethod
-    def _truncate(p):
-        if p.startswith(HOME):
-            return f'~{p[len(HOME):]}'
-        return p
-
     def __str__(self):
         col_w = 13
         s = ['Class:'.ljust(col_w) + self.__class__.__name__]
@@ -268,14 +263,14 @@ class AbstractBaseContext(object):
             s += ['Description:'.ljust(col_w) + f"'{self._desc}'"]
         if self._tag:
             s += ['Tag:'.ljust(col_w) + f"'{self._tag}'"]
-        s += ['ProjectDir:'.ljust(col_w) + self._truncate(self._rootdir)]
-        s += ['DataDir:'.ljust(col_w) + self._truncate(self._datadir)]
-        s += ['ResultsDir:'.ljust(col_w) + self._truncate(self._resdir)]
+        s += ['ProjectDir:'.ljust(col_w) + self._rootdir]
+        s += ['DataDir:'.ljust(col_w) + self._datadir]
+        s += ['ResultsDir:'.ljust(col_w) + self._resdir]
         if self._regdir:
-            s += ['RegDir:'.ljust(col_w) + self._truncate(self._regdir)]
-        s += ['ModuleDir:'.ljust(col_w) + self._truncate(self._moduledir)]
-        s += ['Datafile:'.ljust(col_w) + self._truncate(self._datafile.path())]
-        s += ['ContextDir:'.ljust(col_w) + self._truncate(self._ctxdir)]
+            s += ['RegDir:'.ljust(col_w) + self._regdir]
+        s += ['ModuleDir:'.ljust(col_w) + self._moduledir]
+        s += ['Datafile:'.ljust(col_w) + self._datafile.path()]
+        s += ['ContextDir:'.ljust(col_w) + self._ctxdir]
         env_keys = self.c.__odict__.keys()
         if env_keys:
             s += ['EnvKeys:'.ljust(col_w) + ', '.join(env_keys)]
@@ -344,18 +339,17 @@ class AbstractBaseContext(object):
 
         initpath = os.path.join(admindir, INITFILE)
         if not os.path.isfile(initpath):
-            out(cls._truncate(initpath), prefix='MissingFile', error=True)
+            out(initpath, prefix='MissingFile', error=True)
             return
 
         try:
             with open(initpath, 'r') as fd:
                 initargs = json.load(fd)
         except ValueError:
-            out(cls._truncate(initpath), prefix='InvalidJSON', error=True)
+            out(initpath, prefix='InvalidJSON', error=True)
             return
         else:
-            out(cls._truncate(os.path.split(admindir)[0]),
-                    prefix='LoadedContext')
+            out(os.path.split(admindir)[0], prefix='LoadedContext')
 
         if load_instance and inst is not None:
             for k, v in initargs.items():
@@ -407,7 +401,7 @@ class AbstractBaseContext(object):
             resdest += f'+{self._tag}'
 
         if os.path.isdir(resdest):
-            self.out('Link already exists: {}', self._truncate(resdest),
+            self.out('Link already exists: {}', resdest,
                     error=True)
             return
 
@@ -417,7 +411,7 @@ class AbstractBaseContext(object):
         try:
             os.symlink(self._ctxdir, resdest, target_is_directory=True)
         except IOError:
-            self.out(self._truncate(resdest), prefix='FailedLink', error=True)
+            self.out(resdest, prefix='FailedLink', error=True)
             return
 
         # Hard link the data file into the context directory
@@ -432,7 +426,7 @@ class AbstractBaseContext(object):
         self._regdir = resdest
         self._save()
 
-        self.out(self._truncate(self._regdir), prefix='Registration')
+        self.out(self._regdir, prefix='Registration')
 
     # Run directory path methods
 
@@ -460,19 +454,6 @@ class AbstractBaseContext(object):
         subf = rpath[:-1] + (os.path.split(path)[1],)
         return self.mkdir(*subf)
 
-    def reveal(self):
-        """Reveal the run directory in Finder (OS X only)."""
-        if not os.path.isdir(self._ctxdir):
-            self.out('Context directory is missing: {}', self._truncate(
-                self._ctxdir), error=True)
-            return
-        if sys.platform != 'darwin':
-            self.out('Only available on macOS', error=True)
-            return
-        p = subprocess.run(['open', self._ctxdir])
-        if p.returncode != 0:
-            self.out('Unable to open context directory: {}', self._truncate(
-                self._ctxdir), error=True)
 
     # Console output methods
 
@@ -565,7 +546,7 @@ class AbstractBaseContext(object):
             elif os.path.isdir(path):
                 p = subprocess.run(['rm', '-rf', path])
                 if p.returncode != 0:
-                    self.out(self._truncate(path), prefix='ProblemRemoving',
+                    self.out(path, prefix='ProblemRemoving',
                             error=True)
 
         # Start the AnyBar widget
@@ -664,10 +645,18 @@ class AbstractBaseContext(object):
             self._save_env()
             self._save_call_log()
 
+            # Copy the python module file to the run directory
+            pyfile = import_module(self.__class__.__module__).__file__
+            p = subprocess.run(['cp', pyfile, self._tmpdir])
+            pyfile_copied = p.returncode == 0
+            if not pyfile_copied:
+                self.out(pyfile, prefix='CopyFailed', warning=True)
+            _, basepy = os.path.split(pyfile)
+            prevpyfile = None
+
             # Final output (run) directory is based on method name & tag
             self._rundir = os.path.join(self._ctxdir, step)
-            if tag:
-                self._rundir += '+{}'.format(self._norm_str(tag))
+            if tag: self._rundir += '+{}'.format(self._norm_str(tag))
             if not os.path.exists(self._rundir):
                 os.makedirs(self._rundir)
 
@@ -679,18 +668,28 @@ class AbstractBaseContext(object):
                     '%s', '%02d'))
                 os.makedirs(histdir)
                 for fn in runlist:
-                    os.rename(os.path.join(self._rundir, fn),
-                              os.path.join(histdir, fn))
-                self.out(f'Moved {len(runlist)} items to ' +
-                         self._truncate(histdir), prefix='FileBackup')
+                    runpath = os.path.join(self._rundir, fn)
+                    histpath = os.path.join(histdir, fn)
+                    os.rename(runpath, histpath)
+                    if fn == basepy:
+                        prevpyfile = histpath
 
-            # Move all the current run output files to the run directory
+                self.out(f'Moved {len(runlist)} items to ' +
+                         histdir, prefix='FileBackup')
+
+            # Generate python module diff file
+            if pyfile_copied and prevpyfile is not None:
+                diffpath = os.path.join(self._tmpdir, '{}.diff'.format(basepy))
+                os.system(' '.join(['diff', '-w', prevpyfile, pyfile,
+                        '>"{}"'.format(diffpath)]))
+
+            # Move all the current (temp) output files to the run directory
             tmplist = os.listdir(self._tmpdir)
             for fn in tmplist:
                 os.rename(os.path.join(self._tmpdir, fn),
                           os.path.join(self._rundir, fn))
 
-            self.out(self._truncate(self._rundir), prefix='OutputDir')
+            self.out(self._rundir, prefix='OutputDir')
             self._save()
 
             self.hline()
@@ -751,16 +750,6 @@ class AbstractBaseContext(object):
         self._datafile = DataStore(name=fn, where=parent, logfunc=self._out,
                 quiet=self._quiet)
         self._h5file = self._datafile.path()
-
-    def set_datafile(self, newpath):
-        """Set the analysis context to a new HDF file."""
-        update = self._datafile is not None
-
-        self._set_datafile(newpath)
-        self._save()
-
-        if update:
-            self.out(self._truncate(self._h5file), prefix='NewDatafile')
 
     def get_datafile(self, readonly=None):
         """Get a handle to the HDF data file for this analysis."""
@@ -1146,7 +1135,7 @@ class AbstractBaseContext(object):
         self._savefig.update(savefig)
 
         self._figures[label].savefig(path, **self._savefig)
-        self.out('Saved: {}', self._truncate(path))
+        self.out('Saved: {}', path)
         self._savefig_path = path
 
         if closeafter:
@@ -1162,10 +1151,9 @@ class AbstractBaseContext(object):
             return
         p = subprocess.run(['open', self._savefig_path])
         if p.returncode != 0:
-            self.out('Error opening: {}', self._truncate(
-                self._savefig_path), error=True)
+            self.out('Error opening: {}', self._savefig_path, error=True)
         else:
-            self.out('Opened: {}', self._truncate(self._savefig_path))
+            self.out('Opened: {}', self._savefig_path)
 
     def closefig(self, label=None):
         """Close an open figure."""
