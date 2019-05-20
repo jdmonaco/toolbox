@@ -22,7 +22,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tables as tb
 import pandas as pd
-import brian2 as br
 
 from pouty import AnyBar, ConsolePrinter
 from roto import data, datapath as tpath
@@ -914,6 +913,7 @@ class AbstractBaseContext(object):
 
     def save_simulation(self, network, *path, attrs={}, **root):
         """Save Brian simulation output in group/DataFrame structure."""
+        import brian2 as br
         monitors = [obj for obj in network.objects if type(obj) in
                         (br.StateMonitor, br.SpikeMonitor,
                             br.PopulationRateMonitor)]
