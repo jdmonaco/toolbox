@@ -26,7 +26,7 @@ import pandas as pd
 from pouty import AnyBar, ConsolePrinter
 from roto import data, datapath as tpath
 from roto.figures import get_svg_figinfo
-from roto.paths import uniquify
+from roto.paths import uniquify, tilde
 from roto.strings import snake2title, camel2snake
 from roto.dicts import merge_two_dicts
 
@@ -262,14 +262,14 @@ class AbstractBaseContext(object):
             s += ['Description:'.ljust(col_w) + f"'{self._desc}'"]
         if self._tag:
             s += ['Tag:'.ljust(col_w) + f"'{self._tag}'"]
-        s += ['ProjectDir:'.ljust(col_w) + self._rootdir]
-        s += ['DataDir:'.ljust(col_w) + self._datadir]
-        s += ['ResultsDir:'.ljust(col_w) + self._resdir]
+        s += ['ProjectDir:'.ljust(col_w) + tilde(self._rootdir)]
+        s += ['DataDir:'.ljust(col_w) + tilde(self._datadir)]
+        s += ['ResultsDir:'.ljust(col_w) + tilde(self._resdir)]
         if self._regdir:
-            s += ['RegDir:'.ljust(col_w) + self._regdir]
-        s += ['ModuleDir:'.ljust(col_w) + self._moduledir]
-        s += ['Datafile:'.ljust(col_w) + self._datafile.path()]
-        s += ['ContextDir:'.ljust(col_w) + self._ctxdir]
+            s += ['RegDir:'.ljust(col_w) + tilde(self._regdir)]
+        s += ['ModuleDir:'.ljust(col_w) + tilde(self._moduledir)]
+        s += ['Datafile:'.ljust(col_w) + tilde(self._datafile.path())]
+        s += ['ContextDir:'.ljust(col_w) + tilde(self._ctxdir)]
         env_keys = self.c.__odict__.keys()
         if env_keys:
             s += ['EnvKeys:'.ljust(col_w) + ', '.join(env_keys)]
