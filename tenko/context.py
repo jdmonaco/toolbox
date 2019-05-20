@@ -465,8 +465,8 @@ class AbstractBaseContext(object):
         anybar -- optional, color name to set the AnyBar widget color
         """
         color = kwargs.pop('anybar', None)
-        if color is not None and self._anybar is not None:
-            self._anybar.set_color(color)
+        if color is not None:
+            self.set_anybar_color(color)
         self._out(*args, **kwargs)
 
     def printf(self, *args, **kwargs):
@@ -481,6 +481,21 @@ class AbstractBaseContext(object):
 
     def hline(self, color='white'):
         self._out.hline(color=color)
+
+    def start_anybar(self, color='white'):
+        """Create an AnyBar instance for controlling an AnyBar widget."""
+        if self._anybar is not None:
+            return
+        ab = AnyBar()
+        if ab.pid:
+            self._anybar = ab
+            self.set_anybar_color('white')
+
+    def set_anybar_color(self, color):
+        """If there is an active AnyBar widget, set its color."""
+        if self._anybar is None:
+            return
+        self._anybar.set_color(color)
 
     # Logging methods
 
@@ -545,12 +560,10 @@ class AbstractBaseContext(object):
             elif os.path.isdir(path):
                 p = subprocess.run(['rm', '-rf', path])
                 if p.returncode != 0:
-                    self.out(path, prefix='ProblemRemoving',
-                            error=True)
+                    self.out(path, prefix='ProblemRemoving', error=True)
 
-        # Start the AnyBar widget
-        self._anybar = AnyBar('white')
-        self._anybar.set_color()
+        # Start the AnyBar widget if available
+        self.start_anybar()
 
         # Save any pre-run changes to the key-value store
         self._save_env()
@@ -587,7 +600,7 @@ class AbstractBaseContext(object):
     def _step_execute(self, method, args, kwargs, status):
         status['OK'] = True
         self._running = True
-        self._anybar.set_color('orange')  # to indicate running
+        self.set_anybar_color('orange')  # to indicate running
 
         # Save figure and interactive state to go non-interactive during call
         prevfigset = frozenset(self._figures.keys())
@@ -605,7 +618,7 @@ class AbstractBaseContext(object):
                      error=True, popup=True, anybar='exclamation')
             pdb.post_mortem(sys.exc_info()[2])
         else:
-            self._anybar.set_color('green')
+            self.set_anybar_color('green')
         finally:
             self.close_datafile()
             self.cleanup()  # optional subclass-defined clean up method

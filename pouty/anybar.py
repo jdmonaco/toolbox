@@ -31,6 +31,10 @@ class AnyBar(object):
         self.color = 'white' if color is None else color
         self.port = port
         self.pid = pid
+        if sys.platform != 'Darwin':
+            print(f'Warning: AnyBar not available ({sys.platform})',
+                    file=sys.stderr)
+            return
         self.start()
 
     def __str__(self):
