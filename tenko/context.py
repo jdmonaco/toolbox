@@ -489,7 +489,7 @@ class AbstractBaseContext(object):
         ab = AnyBar()
         if ab.pid:
             self._anybar = ab
-            self.set_anybar_color('white')
+            self.set_anybar_color(color)
 
     def set_anybar_color(self, color):
         """If there is an active AnyBar widget, set its color."""
