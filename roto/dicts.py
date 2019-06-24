@@ -1,8 +1,6 @@
 """
-Functions for handling python dicts.
+Functions and ontologies on dictionaries.
 """
-
-from collections import OrderedDict
 
 
 def merge_two_dicts(a, b):
@@ -27,7 +25,7 @@ class AttrDict(object):
 
     def __init__(self, odict=None):
         if odict is None:
-            odict = OrderedDict()
+            odict = dict()
         self.__odict__ = odict
 
     def __getattr__(self, attr):

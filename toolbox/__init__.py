@@ -1,5 +1,5 @@
 """
-Values that may be needed by toolbox subpackages.
+Shared values across toolbox consumers.
 """
 
 

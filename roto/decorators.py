@@ -3,7 +3,7 @@ Collection of useful decorators.
 """
 
 from decorator import decorator
-from functools import wraps
+from functools import wraps, update_wrapper
 from collections import deque
 
 import numpy as np
@@ -23,14 +23,14 @@ class lazyprop(object):
 
     def __init__(self, func):
         self.func = func
-        self.func_name = func.__name__
+        update_wrapper(self, func)
 
     def __get__(self, obj, cls):
         if obj is None:
             return None
         value = self.func(obj)
-        setattr(obj, self.func_name, value)
-        debug('lazyprop: setting {} on {}', self.func_name, obj)
+        setattr(obj, self.func.__name__, value)
+        debug('lazyprop: setting {} on {}', self.func.__name__, obj)
         return value
 
 

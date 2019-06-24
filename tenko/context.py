@@ -15,7 +15,7 @@ import datetime
 import subprocess
 from importlib import import_module
 from decorator import decorator
-from collections import OrderedDict, namedtuple
+from collections import namedtuple
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -23,12 +23,13 @@ import numpy as np
 import tables as tb
 import pandas as pd
 
+from toolbox import HOME, PROJDIR
 from pouty import AnyBar, ConsolePrinter
 from roto import data, datapath as tpath
 from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
-from roto.strings import snake2title, camel2snake
-from roto.dicts import merge_two_dicts
+from roto.strings import snake2title, slugify, naturalize
+from roto.dicts import AttrDict, merge_two_dicts
 
 from . import parallel
 from .repo import git_revision
@@ -38,29 +39,6 @@ from .store import DataStore
 CALLFILE = 'call.log'
 INITFILE = 'init.json'
 ENVFILE = 'env.json'
-HOME = os.getenv('HOME')
-if sys.platform == 'win32':
-    HOME = os.getenv("USERPROFILE")
-PROJDIR = os.path.join(HOME, 'projects')
-
-
-class AttrDict(object):
-
-    def __init__(self, odict=None):
-        if odict is None:
-            odict = OrderedDict()
-        self.__odict__ = odict
-
-    def __getattr__(self, attr):
-        if attr not in self.__odict__:
-            raise AttributeError("'%s' attribute is not set" % attr)
-        return self.__odict__[attr]
-
-    def __setattr__(self, attr, value):
-        if attr == '__odict__':
-            object.__setattr__(self, attr, value)
-            return
-        self.__odict__[attr] = value
 
 
 @decorator
@@ -78,9 +56,6 @@ class AbstractBaseContext(object):
 
     """
     Smart context for open and reproducible data analysis.
-
-    Subclass overrides:
-    cleanup -- clean-up to perform after each analysis step
 
     Class methods:
     load -- create a new context object for a previous run
@@ -130,10 +105,6 @@ class AbstractBaseContext(object):
         _Class.logcolor = logcolor
         return _Class
 
-    @staticmethod
-    def _norm_str(s):
-        return camel2snake(s, sep='-').lower().strip().replace(' ', '-')
-
     def _arg(self, name, value, dflt=None, norm=False, path=False,
         optional=False):
         """
@@ -143,13 +114,13 @@ class AbstractBaseContext(object):
             if path:
                 return os.path.abspath(value)
             if norm:
-                return self._norm_str(value)
+                return slugify(value)
             return value
         if dflt is not None:
             if path:
                 return os.path.abspath(dflt)
             if norm:
-                return self._norm_str(dflt)
+                return slugify(dflt)
             return dflt
         if name is not None and hasattr(self.__class__, name):
             cls_dflt = getattr(self.__class__, name)
@@ -157,7 +128,7 @@ class AbstractBaseContext(object):
                 if path:
                     return os.path.abspath(cls_dflt)
                 if norm:
-                    return self._norm_str(cls_dflt)
+                    return slugify(cls_dflt)
                 return cls_dflt
         if not optional:
             print(f'Warning: missing value for \'{name}\'', file=sys.stderr)
@@ -308,14 +279,10 @@ class AbstractBaseContext(object):
             json.dump(self._env, f, skipkeys=True, indent=2, sort_keys=False)
 
     def _load_env(self):
-        self._env = OrderedDict()
         sfn = os.path.join(self._admindir, ENVFILE)
-        if not os.path.isfile(sfn):
-            return
+        if not os.path.isfile(sfn): return
         with open(sfn, 'r') as f:
-            env = json.load(f)
-        for k, v in env.items():
-            self._env[k] = v
+            self._env = json.load(f)
 
     # Load/save methods
 
@@ -484,8 +451,7 @@ class AbstractBaseContext(object):
 
     def start_anybar(self, color='white'):
         """Create an AnyBar instance for controlling an AnyBar widget."""
-        if self._anybar is not None:
-            return
+        if self._anybar is not None: return
         ab = AnyBar()
         if ab.pid:
             self._anybar = ab
@@ -493,8 +459,7 @@ class AbstractBaseContext(object):
 
     def set_anybar_color(self, color):
         """If there is an active AnyBar widget, set its color."""
-        if self._anybar is None:
-            return
+        if self._anybar is None: return
         self._anybar.set_color(color)
 
     # Logging methods
@@ -621,7 +586,6 @@ class AbstractBaseContext(object):
             self.set_anybar_color('green')
         finally:
             self.close_datafile()
-            self.cleanup()  # optional subclass-defined clean up method
 
             # Show any new figures and restore interactive state
             curfigset = frozenset(self._figures.keys())
@@ -636,18 +600,6 @@ class AbstractBaseContext(object):
             mpl.rc_file_defaults()
 
         return result
-
-    def cleanup(self):
-        """Analysis subclasses should override this with any tear-down or
-        clean-up functionality (close files, etc.) after error or successful
-        completion. This will be called after *every* step method in the class.
-
-        Note that closing the analysis data file and showing new figures is
-        already handled automatically.
-        """
-        # store.close()
-        # parallel.close()
-        pass
 
     def  _step_exit(self, method, args, kwargs, status):
         step = method.__name__
@@ -668,7 +620,7 @@ class AbstractBaseContext(object):
 
             # Final output (run) directory is based on method name & tag
             self._rundir = os.path.join(self._ctxdir, step)
-            if tag: self._rundir += '+{}'.format(self._norm_str(tag))
+            if tag: self._rundir += '+{}'.format(slugify(tag))
             if not os.path.exists(self._rundir):
                 os.makedirs(self._rundir)
 
@@ -779,12 +731,6 @@ class AbstractBaseContext(object):
         """Backup the data file and create a clean active copy."""
         self._datafile.backup()
 
-    @staticmethod
-    def _nat(n):
-        """Convert name to a 'natural' name for data storage."""
-        return n.strip().lower().replace(' ', '_').replace('-', '_').replace(
-                '.', '_')
-
     def datapath(self, *path, version=None, desc=None, classtag=None,
         step=None, tag=None, root=None):
         """An HDF data path anchored to a versioned & run-tagged root group."""
@@ -808,11 +754,11 @@ class AbstractBaseContext(object):
         assert Step is not None, "missing step name for data"
 
         # Construct the path components
-        base = 'v{}'.format(self._nat(Vers))
-        if Desc: base += '__{}'.format(self._nat(Desc))
-        run = self._nat(Step)
-        if Ctag: run += '__cls_{}'.format(self._nat(Ctag))
-        if Rtag: run += '__run_{}'.format(self._nat(Rtag))
+        base = 'v{}'.format(naturalize(Vers))
+        if Desc: base += '__{}'.format(naturalize(Desc))
+        run = naturalize(Step)
+        if Ctag: run += '__cls_{}'.format(naturalize(Ctag))
+        if Rtag: run += '__run_{}'.format(naturalize(Rtag))
 
         return tpath.join('/', base, run, *path)
 
