@@ -1153,3 +1153,36 @@ class AbstractBaseContext(object):
         self._figfmt = fmt
         if save:
             self._save()
+
+    # Movie methods
+
+    def play_movie(self, movie_path=None, scale_dpi=None):
+        """
+        Play specified movie or the one located at `movie_path` attribute.
+        """
+        if movie_path is not None:
+            movp = movie_path
+        elif 'movie_path' in self:
+            movp = self.c.movie_path
+        else:
+            self.out('Please specify a path to the movie file', error=True)
+            return
+
+        if not os.path.isfile(movp):
+            self.out(movp, prefix='InvalidFile', error=True)
+            return
+
+        self.out(movp, prefix='PlayingMovie')
+
+        dv = subprocess.DEVNULL
+        devnull = dict(stdout=dv, stderr=dv)
+        p = subprocess.run(['which', 'mpv'], **devnull)
+        if p.returncode == 0:
+            mpv_cmd = ['mpv', '--loop=yes', '--ontop=yes']
+            if scale_dpi is not None:
+                wscale = IMACPRO_DPI/scale_dpi
+                mpv_cmd.append(f'--window-scale={wscale:.1f}')
+            mpv_cmd.append(movp)
+            subprocess.run(mpv_cmd, **devnull)
+        else:
+            self.out('Player \'mpv\' is missing', error=True)
