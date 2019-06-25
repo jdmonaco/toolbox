@@ -62,6 +62,12 @@ class AttrDict(object):
     def __iter__(self):
         return iter(self.__odict__)
 
+    def __str__(self):
+        return str(self.__odict__)
+
+    def __repr__(self):
+        return f'AttrDict({self})'
+
 
 class Tree(dict):
 

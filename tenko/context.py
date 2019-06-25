@@ -23,12 +23,12 @@ import numpy as np
 import tables as tb
 import pandas as pd
 
-from toolbox import HOME, PROJDIR
+from toolbox import HOME, PROJDIR, IMACPRO_DPI
 from pouty import AnyBar, ConsolePrinter
 from roto import data, datapath as tpath
 from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
-from roto.strings import snake2title, slugify, naturalize
+from roto.strings import snake2title, sluggify, naturalize
 from roto.dicts import AttrDict, merge_two_dicts
 
 from . import parallel
@@ -114,13 +114,13 @@ class AbstractBaseContext(object):
             if path:
                 return os.path.abspath(value)
             if norm:
-                return slugify(value)
+                return sluggify(value)
             return value
         if dflt is not None:
             if path:
                 return os.path.abspath(dflt)
             if norm:
-                return slugify(dflt)
+                return sluggify(dflt)
             return dflt
         if name is not None and hasattr(self.__class__, name):
             cls_dflt = getattr(self.__class__, name)
@@ -128,7 +128,7 @@ class AbstractBaseContext(object):
                 if path:
                     return os.path.abspath(cls_dflt)
                 if norm:
-                    return slugify(cls_dflt)
+                    return sluggify(cls_dflt)
                 return cls_dflt
         if not optional:
             print(f'Warning: missing value for \'{name}\'', file=sys.stderr)
@@ -279,10 +279,11 @@ class AbstractBaseContext(object):
             json.dump(self._env, f, skipkeys=True, indent=2, sort_keys=False)
 
     def _load_env(self):
+        self._env = dict()
         sfn = os.path.join(self._admindir, ENVFILE)
         if not os.path.isfile(sfn): return
         with open(sfn, 'r') as f:
-            self._env = json.load(f)
+            self._env.update(json.load(f))
 
     # Load/save methods
 
@@ -620,7 +621,7 @@ class AbstractBaseContext(object):
 
             # Final output (run) directory is based on method name & tag
             self._rundir = os.path.join(self._ctxdir, step)
-            if tag: self._rundir += '+{}'.format(slugify(tag))
+            if tag: self._rundir += '+{}'.format(sluggify(tag))
             if not os.path.exists(self._rundir):
                 os.makedirs(self._rundir)
 

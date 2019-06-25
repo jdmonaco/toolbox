@@ -10,7 +10,7 @@ def naturalize(s):
     return \
         s.strip().lower().replace(' ', '_').replace('-', '_').replace('.', '_')
 
-def slugify(s):
+def sluggify(s):
     """Normalize to a url-style slug: hyphenated lower-case words."""
     return camel2snake(s, sep='-').lower().strip().replace(' ', '-')
 
