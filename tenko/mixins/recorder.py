@@ -54,6 +54,9 @@ class RecorderMixin(object):
         self._recorder_traces[name] = trace
         self._recorder_variables[name] = data
 
+    def recorder_t(self):
+        return self._recorder_t
+
     def recorder_t_text(self, fmt='t = {:0.3f} s'):
         return fmt.format(self._recorder_t)
 
