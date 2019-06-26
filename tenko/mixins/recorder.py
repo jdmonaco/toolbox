@@ -2,8 +2,6 @@
 Context mixin for recording model variables across a simulation.
 """
 
-from collections import OrderedDict
-
 import numpy as np
 
 
@@ -18,8 +16,8 @@ class RecorderMixin(object):
         """
         Set up the timesteps for the model simulation.
         """
-        self._recorder_traces = OrderedDict()
-        self._recorder_variables = OrderedDict()
+        self._recorder_traces = dict()
+        self._recorder_variables = dict()
         self._recorder_timesteps = np.arange(0, duration+dt, dt)
         self._recorder_Nt = len(self._recorder_timesteps)
         self._recorder_pbarpct = self._recorder_Nt >= pbar_width

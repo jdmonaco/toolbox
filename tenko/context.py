@@ -663,8 +663,9 @@ class AbstractBaseContext(object):
 
         self.close_logfile()
         self._running = False
-        self._anybar.quit()
-        self._anybar = None
+        if self._anybar is not None:
+            self._anybar.quit()
+            self._anybar = None
 
         if not status['OK']:
             raise RuntimeError('Stopping due to exception in {}'.format(step))
@@ -1163,8 +1164,8 @@ class AbstractBaseContext(object):
         """
         if movie_path is not None:
             movp = movie_path
-        elif 'movie_path' in self:
-            movp = self.c.movie_path
+        elif 'movie_file' in self:
+            movp = self.path(self.c.movie_file)
         else:
             self.out('Please specify a path to the movie file', error=True)
             return
