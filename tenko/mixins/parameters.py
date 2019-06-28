@@ -109,10 +109,10 @@ class ParametersMixin(object):
         modscope.update(dparams)
         self.p = AttrDict(dparams)
         for name, value in dparams.items():
-            logstr = f' - {name} = {value}'
+            logstr = f'- {name} = {value}'
             dflt = defaults.get(name)
             if dflt is not None and value != dflt:
-                logstr = f' * {name} = {value} [default: {dflt}]'
+                logstr = f'* {name} = {value} [default: {dflt}]'
             self.out(logstr, hideprefix=True)
 
     def load_environment_parameters(self, env):
@@ -129,11 +129,11 @@ class ParametersMixin(object):
         self.out(repr(E), prefix='Geometry')
         for v in Ivars:
             setattr(self, v, E.info[v])
-            self.out(f' - {v} = {getattr(self, v)}', prefix='Geometry',
+            self.out(f'- {v} = {getattr(self, v)}', prefix='Geometry',
                 hideprefix=True)
         for k in Avars:
             setattr(self, k, getattr(E, k))
-            self.out(' - {} ({})', k, 'x'.join(list(map(str, getattr(self,
+            self.out('- {} ({})', k, 'x'.join(list(map(str, getattr(self,
                 k).shape))), prefix='Geometry', hideprefix=True)
 
     def set_dependent_parameters(self, **params):
@@ -146,7 +146,7 @@ class ParametersMixin(object):
         modscope.update(params)
         for name, value in params.items():
             self.p[name] = value
-            self.out(f' - {name} = {value}', hideprefix=True)
+            self.out(f'- {name} = {value}', hideprefix=True)
 
     def set_random_seed(self, key):
         """

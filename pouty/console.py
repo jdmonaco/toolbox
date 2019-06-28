@@ -206,7 +206,7 @@ class ConsolePrinter(object):
             prefix = strftime(prefix)
         pre = f'{prefix}: '
         if hideprefix:
-            pre = ' '*len(prefix)
+            pre = ' '*len(pre)
 
         # Construct the display message
         msg, args = msg[0], msg[1:]
@@ -245,7 +245,7 @@ class ConsolePrinter(object):
             firstline = tilde(firstline)
 
         # Print remaining lines indented and aligned with the first
-        pre_len = len(pre) + 1
+        pre_len = len(pre)
         print(pref(pre) + msgf(firstline), file=console)
         for line in lines[1:]:
             line = line.rstrip()
