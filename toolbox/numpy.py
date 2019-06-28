@@ -49,7 +49,7 @@ from numpy import (
         ndarray,
         newaxis as AX,
         newaxis,
-        nextafter
+        nextafter,
         ones,
         ones_like,
         pi,
