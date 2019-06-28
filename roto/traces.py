@@ -4,8 +4,6 @@ Temporal trace plots.
 
 from collections import deque
 
-import matplotlib.pyplot as plt
-
 from .dicts import merge_two_dicts
 
 
