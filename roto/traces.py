@@ -14,7 +14,7 @@ class RealtimeTraces(object):
     """
 
     def __init__(self, window=10.0, dt=1.0, t0=0.0, time_axis='x', fmt=None,
-        datapad=0.05, legend=True, **traces):
+        datapad=0.05, legend=True, plot=False, **traces):
         """
         Initialize with keywords of trace names and tuple values with an axis
         object and optional dictionary of plot arguments. Common plot arguments
@@ -54,6 +54,8 @@ class RealtimeTraces(object):
             self.setlim = {name:ax.set_ylim for name, ax in self.ax.items()}
         elif self.time_axis == 'y':
             self.setlim = {name:ax.set_xlim for name, ax in self.ax.items()}
+
+        if plot: self.plot()
 
     def plot(self):
         """
