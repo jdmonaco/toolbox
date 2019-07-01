@@ -115,6 +115,16 @@ class ParametersMixin(object):
                 logstr = f'* {name} = {value} [default: {dflt}]'
             self.out(logstr, hideprefix=True)
 
+    def update_parameters(self, **params):
+        """
+        Modify global & instance parameter values after initialization.
+        """
+        for name, value in params.items():
+            if name not in self.p:
+                continue
+            self.p[name] = value
+            self._get_module_scope()[name] = value
+
     def load_environment_parameters(self, env):
         """
         Import environment geometry into the module and object scope.
