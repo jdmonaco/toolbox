@@ -10,6 +10,7 @@ except ImportError:
 import os
 from importlib import import_module
 
+import panel as pn
 import numpy as np
 from numpy.random import seed
 
@@ -121,9 +122,26 @@ class ParametersMixin(object):
         """
         for name, value in params.items():
             if name not in self.p:
+                self.out(name, prefix='UnknownParameter', warning=True)
                 continue
             self.p[name] = value
             self._get_module_scope()[name] = value
+
+    def get_panel_widgets(self, step=0.01, **sliders):
+        """
+        Construct a slider widget Panel based on (start, end) tuples.
+        """
+        names = list(sliders.keys())
+        widgets = [pn.widgets.FloatSlider(name=k, value=self.p[k], start=s,
+                    end=e, step=step) for k, (s, e) in sliders.items()]
+        values = [s.param.value for s in widgets]
+
+        @pn.depends(*values)
+        def callback(*values):
+            params = {k:v for k, v in zip(names, values)}
+            self.update_parameters(**params)
+            return pn.Column(*widgets)
+        return callback
 
     def load_environment_parameters(self, env):
         """
