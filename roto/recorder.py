@@ -1,5 +1,5 @@
 """
-Context mixin for recording model variables across a simulation.
+Record model array variables and state values across a simulation.
 """
 
 import numpy as np
@@ -9,81 +9,109 @@ DEFAULT_DURATION = 1.0
 DEFAULT_DT = 0.001
 
 
-class RecorderMixin(object):
+class ModelRecorder(object):
 
-    def recorder_init(self, duration=DEFAULT_DURATION, dt=DEFAULT_DT,
-        pbar_width=100):
+    def __init__(self, context, duration=DEFAULT_DURATION, dt=DEFAULT_DT,
+        pbar_width=100, **initial_values):
         """
-        Set up the timesteps for the model simulation.
-        """
-        self._recorder_traces = dict()
-        self._recorder_variables = dict()
-        self._recorder_timesteps = np.arange(0, duration+dt, dt)
-        self._recorder_Nt = len(self._recorder_timesteps)
-        self._recorder_pbarpct = self._recorder_Nt >= pbar_width
-        self._recorder_pbarmod = int(self._recorder_Nt/pbar_width)
-        self._recorder_n = -1  # flag for unstarted simulation
-        self._recorder_t = self._recorder_timesteps[self._recorder_n]
+        Add recording monitors for keyword-specified variables and states.
 
-    def set_recorder_variables(self, **variables):
+        Note: variable arrays are stored by reference and require that update
+        variables use the same data buffers throughut the simulation.
         """
-        Add recording monitors for keyword-specified model variables.
+        self.context = context
+        self.duration = duration
+        self.dt = dt
 
-        Note: data are stored by reference, and thus require that update
-        variables use the same array buffers throughut the simulation.
+        self.timesteps = np.arange(0, duration+dt, dt)
+        self.Nt = len(self.timesteps)
+        self.pbarpct = self.Nt >= pbar_width
+        self.pbarmod = int(self.Nt/pbar_width)
+        self.n = -1  # flag for unstarted simulation
+        self.t = self.timesteps[self.n]
+
+        self.traces = dict()
+        self.variables = dict()
+        self.state = dict()
+        self.state_traces = dict()
+
+        for name, data in initial_values.items():
+            if isinstance(data, np.ndarray):
+                self.add_variable_monitor(name, data)
+                continue
+            self.add_state_monitor(name, data)
+
+    def add_variable_monitor(self, name, data):
         """
-        if not hasattr(self, '_recorder_traces'):
-            raise RuntimeError('you must run recorder_init() first')
-        for name, data in variables.items():
-            self.recorder_add_monitor(name, data)
+        Add a new monitor for a data array variable.
 
-    def recorder_add_monitor(self, name, data):
-        """
-        Add a new monitor for a recording variable.
-
-        Note: In the simulation loop, recorder_update() should be called first
+        Note: In the simulation loop, update() should be called first
         so that initial values at t=0 are stored, followed by model updates of
         the variables.
         """
-        assert self._recorder_n == -1, 'simulation has already started'
-        assert name not in self._recorder_variables, f'monitor exists ({name})'
+        assert self.n == -1, 'simulation has already started'
+        assert name not in self.variables, f'monitor exists ({name})'
         assert type(name) is str, 'variable name must be a string'
         assert type(data) is np.ndarray, 'variable data must be an array'
 
-        trace = np.zeros((self._recorder_Nt,) + data.shape, data.dtype)
-        self._recorder_traces[name] = trace
-        self._recorder_variables[name] = data
+        self.traces[name] = np.zeros((self.Nt,) + data.shape, data.dtype)
+        self.variables[name] = data
 
-    def recorder_t(self):
-        return self._recorder_t
+    def add_state_monitor(self, name, value):
+        """
+        Add a new monitor for a state value (scalars of any type).
+        """
+        assert self.n == -1, 'simulation has already started'
+        assert name not in self.state, f'state monitor exists ({name})'
+        assert type(name) is str, 'variable name must be a string'
+        assert np.size(value) == 1, 'state must be a scalar value'
 
-    def recorder_t_text(self, fmt='t = {:0.3f} s'):
-        return fmt.format(self._recorder_t)
+        self.state_traces[name] = np.zeros(self.Nt, np.array(value).dtype)
+        self.state[name] = value
 
-    def recorder_progressbar(self, color='purple'):
-        if self._recorder_pbarpct:
-            if self._recorder_n % self._recorder_pbarmod == 0:
-                self.box(filled=False, color=color)
+    def t_text(self, fmt='t = {:0.3f} s'):
+        return fmt.format(self.t)
+
+    def progressbar(self, color='purple'):
+        """
+        Once-per-update console output for a simulation progress bar.
+        """
+        if self.pbarpct:
+            if self.n % self.pbarmod == 0:
+                self.context.box(filled=False, color=color)
         else:
-            self.box(filled=False, color=color)
+            self.context.box(filled=False, color=color)
 
-    def recorder_update(self):
+    def update(self, **newstate):
         """
-        Update the time-series and monitored data traces.
+        Update the time series, variable monitors, and state monitors.
+
+        Note: Updated state values must be passed in as keyword arguments, but
+        variable data references are stored and do not need to be passed in.
         """
-        self._recorder_n += 1
-        self._recorder_t = self._recorder_timesteps[self._recorder_n]
+        self.n += 1
+        self.t = self.timesteps[self.n]
 
         # Set data trace to current value of variable data
-        for name, data in self._recorder_variables.items():
-            self._recorder_traces[name][self._recorder_n] = data
+        for name, data in self.variables.items():
+            self.traces[name][self.n] = data
 
-    def save_recorder_traces(self, **dpath):
-        """
-        Save all monitored data traces to context datafile.
+        # Update state values, holding non-updated values fixed
+        for name, value in self.state.items():
+            if name in newstate:
+                self.state_traces[name][self.n] = newstate[name]
+                self.state[name] = newstate[name]
+                continue
+            self.state_traces[name][self.n] = self.state[name]
 
-        Keyword arguments are passed to datapath().
+    def save_recordings(self, **dpath):
         """
-        self.save_array(self._recorder_timesteps, 't', **dpath)
-        for name, data in self._recorder_traces.items():
-            self.save_array(data, name, **dpath)
+        Save all monitored recordings of variables and state to the datafile.
+
+        Keyword arguments are passed to datapath(...).
+        """
+        self.context.save_array(self.timesteps, 't', **dpath)
+        for name, data in self.traces.items():
+            self.context.save_array(data, name, **dpath)
+        for name, data in self.state_traces.items():
+            self.context.save_array(data, name, **dpath)

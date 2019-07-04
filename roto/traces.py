@@ -7,7 +7,7 @@ from collections import deque
 from .dicts import merge_two_dicts
 
 
-class RealtimeTraces(object):
+class RealtimeTracesPlot(object):
 
     """
     Manage a collection of real-time windowed trace plots and axes limits.
