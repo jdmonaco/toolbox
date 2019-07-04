@@ -10,7 +10,11 @@ except ImportError:
 import os
 from importlib import import_module
 
-import panel as pn
+try:
+    import panel as pn
+except ImportError:
+    print('Warning: install `panel` to use interactive dashboards.')
+
 import numpy as np
 from numpy.random import seed
 
