@@ -12,7 +12,7 @@ DEFAULT_DT = 0.001
 class ModelRecorder(object):
 
     def __init__(self, context, duration=DEFAULT_DURATION, dt=DEFAULT_DT,
-        pbar_width=100, **initial_values):
+        pbar_width=100, interact=False, **initial_values):
         """
         Add recording monitors for keyword-specified variables and states.
 
@@ -20,6 +20,7 @@ class ModelRecorder(object):
         variables use the same data buffers throughut the simulation.
         """
         self.context = context
+        self.interact = interact
         self.duration = duration
         self.dt = dt
 
@@ -76,6 +77,7 @@ class ModelRecorder(object):
         """
         Once-per-update console output for a simulation progress bar.
         """
+        if self.interact: return
         if self.pbarpct:
             if self.n % self.pbarmod == 0:
                 self.context.box(filled=False, color=color)
@@ -90,6 +92,9 @@ class ModelRecorder(object):
         variable data references are stored and do not need to be passed in.
         """
         self.n += 1
+        if self.interact:
+            self.t += self.dt
+            return
         self.t = self.timesteps[self.n]
 
         # Set data trace to current value of variable data
@@ -110,6 +115,10 @@ class ModelRecorder(object):
 
         Keyword arguments are passed to datapath(...).
         """
+        if self.interact:
+            self.context.out('Interactive recording', prefix='SaveError',
+                    error=True)
+            return
         self.context.save_array(self.timesteps, 't', **dpath)
         for name, data in self.traces.items():
             self.context.save_array(data, name, **dpath)
