@@ -152,7 +152,7 @@ class ParametersMixin(object):
         Import environment geometry into the module and object scope.
         """
         modscope = self._get_module_scope()
-        modscope['E'] = self.E = E = EnvironmentGeometry(env)
+        modscope['Env'] = self.e = E = EnvironmentGeometry(env)
         Ivars = list(sorted(E.info.keys()))
         Avars = list(sorted(filter(lambda k: isinstance(getattr(E, k),
             np.ndarray), E.__dict__.keys())))
@@ -160,12 +160,10 @@ class ParametersMixin(object):
         modscope.update({k:getattr(E, k) for k in Avars})
         self.out(repr(E), prefix='Geometry')
         for v in Ivars:
-            setattr(self, v, E.info[v])
-            self.out(f'- {v} = {getattr(self, v)}', prefix='Geometry',
+            self.out(f'- {v} = {getattr(E, v)}', prefix='Geometry',
                 hideprefix=True)
         for k in Avars:
-            setattr(self, k, getattr(E, k))
-            self.out('- {} ({})', k, 'x'.join(list(map(str, getattr(self,
+            self.out('- {} ({})', k, 'x'.join(list(map(str, getattr(E,
                 k).shape))), prefix='Geometry', hideprefix=True)
 
     def set_dependent_parameters(self, **params):
