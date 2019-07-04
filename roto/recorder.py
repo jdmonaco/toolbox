@@ -106,7 +106,7 @@ class ModelRecorder(object):
 
     def save_recordings(self, **dpath):
         """
-        Save all monitored recordings of variables and state to the datafile.
+        Save monitored variable and state recordings to the context datafile.
 
         Keyword arguments are passed to datapath(...).
         """
