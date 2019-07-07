@@ -29,8 +29,9 @@ class ModelRecorder(object):
         self.pbarpct = self.Nt >= pbar_width
         self.pbarmod = int(self.Nt/pbar_width)
         self.n = -1  # flag for unstarted simulation
-        self.t = self.timesteps[self.n]
+        self.t = 0.0
 
+        self.unit_slices = dict()
         self.traces = dict()
         self.variables = dict()
         self.state = dict()
@@ -42,7 +43,7 @@ class ModelRecorder(object):
                 continue
             self.add_state_monitor(name, data)
 
-    def add_variable_monitor(self, name, data):
+    def add_variable_monitor(self, name, data, record=True):
         """
         Add a new monitor for a data array variable.
 
@@ -55,7 +56,15 @@ class ModelRecorder(object):
         assert type(name) is str, 'variable name must be a string'
         assert type(data) is np.ndarray, 'variable data must be an array'
 
-        self.traces[name] = np.zeros((self.Nt,) + data.shape, data.dtype)
+        if record == True:
+            self.unit_slices[name] = sl = slice(None)
+        elif np.iterable(record):
+            self.unit_slices[name] = sl = list(record)
+        else:
+            raise ValueError(f'invalid record value ({record})')
+        recdata = data[sl]
+
+        self.traces[name] = np.zeros((self.Nt,) + recdata.shape, data.dtype)
         self.variables[name] = data
 
     def add_state_monitor(self, name, value):
@@ -99,7 +108,7 @@ class ModelRecorder(object):
 
         # Set data trace to current value of variable data
         for name, data in self.variables.items():
-            self.traces[name][self.n] = data
+            self.traces[name][self.n] = data[self.unit_slices[name]]
 
         # Update state values, holding non-updated values fixed
         for name, value in self.state.items():
