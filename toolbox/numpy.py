@@ -42,6 +42,7 @@ from numpy import (
         inf,
         isclose,
         isfinite,
+        lexsort,
         linspace,
         log,
         log1p,
