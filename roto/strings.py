@@ -7,8 +7,8 @@ import re
 
 def naturalize(s):
     """Normalize to 'natural' naming for identifiers or data storage."""
-    return \
-        s.strip().lower().replace(' ', '_').replace('-', '_').replace('.', '_')
+    return camel2snake(s).strip().lower().replace(' ', '_').replace('-', '_'
+            ).replace('.', '_')
 
 def sluggify(s):
     """Normalize to a url-style slug: hyphenated lower-case words."""

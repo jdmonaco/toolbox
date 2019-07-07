@@ -8,7 +8,7 @@ PYthon OUTput → P OUT Y → POUTY.
 * Anybar widget color control
 """
 
-from .console import log, debug, printf, ConsolePrinter
+from .console import log, debug, printf, box, hline, ConsolePrinter
 from .notifier import Notifier
 from .anybar import AnyBar
 
