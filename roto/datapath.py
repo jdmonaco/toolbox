@@ -1,13 +1,25 @@
 """
-os.path.join & split that use the correct path separator for HDF-5 paths.
+Tools for datapath construction for HDF-5 files.
 """
 
 import os
+import hashlib
 from os.path import splitdrive
 import genericpath
 
 
+def attr_hash(obj, *attrs):
+    """
+    An attribute-based deterministic hash of an object for unique IDs.
+    """
+    m = hashlib.shake_128()
+    [m.update(bytes(f'{a}={getattr(obj,a)}', 'utf-8')) for a in attrs]
+    return m.hexdigest(10)
+
 def join(path, *paths):
+    """
+    Modified version of os.path.join that preserves '/' across OSes.
+    """
     path = os.fspath(path)
     if isinstance(path, bytes):
         sep = b'/'
@@ -51,9 +63,9 @@ def join(path, *paths):
         raise
 
 def split(p):
-    """Split a pathname.
-    Return tuple (head, tail) where tail is everything after the final slash.
-    Either part may be empty."""
+    """
+    Modified version of os.path.split that preserves '/' across OSes.
+    """
     p = os.fspath(p)
     if isinstance(p, bytes):
         seps = b'\\/'
