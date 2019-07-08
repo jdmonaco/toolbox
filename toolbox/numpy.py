@@ -1,5 +1,5 @@
 """
-Globstar numpy imports for interactive work or simulation code.
+Numpy imports for interactive work or simulation code.
 """
 
 import numpy as np
@@ -15,13 +15,18 @@ from numpy.random import (
 )
 from numpy import (
         absolute,
-        any,
+        abs as abs_,
+        all as all_,
+        any as any_,
         atleast_1d,
         atleast_2d,
         arange,
         arccos,
         arcsin,
         arctan2,
+        argmax,
+        argmin,
+        argsort,
         array,
         average,
         broadcast_arrays,
@@ -51,6 +56,7 @@ from numpy import (
         meshgrid,
         nan,
         ndarray,
+        ndim,
         newaxis as AX,
         newaxis,
         nextafter,
@@ -64,9 +70,11 @@ from numpy import (
         sin,
         size,
         sqrt,
+        sum as sum_,
         tan,
         tanh,
         tensordot,
+        trapz,
         unique,
         vstack,
         zeros,
