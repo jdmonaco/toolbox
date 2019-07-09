@@ -2,8 +2,7 @@
 Automatic caching storage for expensive computed sigals.
 """
 
-import matplotlib.pyplot as plt
-
+from pouty import log
 from toolbox.numpy import random
 from roto.strings import naturalize
 from roto.datapath import attr_hash
@@ -38,6 +37,10 @@ class AutomaticCache(object):
 
         for name in self.save_attrs:
             setattr(self, name, None)
+
+        for key in self.key_attrs:
+            if not hasattr(self, key):
+                log(key, prefix='MissingCacheKey', error=True)
 
         klass = self.__class__.__name__
         seed = klass if seed is None else seed
