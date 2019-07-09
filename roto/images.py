@@ -41,7 +41,7 @@ def stack_to_image(stack, filename, **kwargs):
     """Save a stitched and flattened image of a vertical stack of 2D arrays."""
     N = stack.shape[0]
     sx, sy = stack.shape[1:]
-    r, c  = tiling_dims(N)
+    r = c = max(tiling_dims(N))
     res = (sx * r, sy * c)
     Pimg = np.zeros(res)
 
