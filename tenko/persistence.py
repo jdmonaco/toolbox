@@ -57,7 +57,7 @@ class AutomaticCache(object):
         """
         Perform the computation, then cache & return the results.
         """
-        if context is not None and self.check_cache(context):
+        if context is not None and self._check_cache(context):
             return self._load(context)
 
         self._compute()
@@ -110,6 +110,6 @@ class AutomaticCache(object):
         results = []
         for name in self.save_attrs:
             setattr(self, name, context.read_array(self.cachename, name,
-                root=self.data_root)
+                root=self.data_root))
             results.append(getattr(self, name))
         return tuple(results)
