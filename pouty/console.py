@@ -321,7 +321,7 @@ def debug(*args, **kwargs):
 def printf(s, c='green'):
     Logger.printf(s, color=c)
 
-def box(filled=True, c='green'):
+def box(filled=False, c='green'):
     Logger.box(filled=filled, color=c)
 
 def hline(c='snow'):

@@ -737,6 +737,8 @@ class AbstractBaseContext(object):
         step=None, tag=None, root=None):
         """An HDF data path anchored to a versioned & run-tagged root group."""
         if root is not None:
+            if isinstance(root, tb.Group):
+                root = root._v_pathname
             root = tpath.join('/', root)
             return tpath.join(root, *path)
 
@@ -844,7 +846,7 @@ class AbstractBaseContext(object):
         simdata = namedtuple('%sData' % network_name, dfs.keys())
         return simdata(**dfs)
 
-    def create_group(self, *path, **root):
+    def create_group(self, *path, attrs={}, **root):
         """Create a new group in the datafile."""
         where, name = tpath.split(self.datapath(*path, **root))
         dfile = self.get_datafile(False)
@@ -852,6 +854,7 @@ class AbstractBaseContext(object):
             grp = dfile.get_node(where, name=name)
         except tb.NoSuchNodeError:
             grp = data.new_group(dfile, where, name)
+            self._write_v_attrs(grp, attrs)
         else:
             self.out('group already exists: {}', grp._v_pathname,
                     prefix='Warning', error=True)
