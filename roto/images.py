@@ -118,7 +118,10 @@ def array_to_rgba(M, mask=None, mask_color='w', cmap=None,
         cmap = default_cmap(circular=S is not None)
 
     cmap = plt.get_cmap(cmap)
-    rgba = cmap((M - cmin) / (cmax - cmin), bytes=True)
+    if cmin == cmax:
+        rgba = _fill_rgba(M.shape, cmap(0.0))
+    else:
+        rgba = cmap((M - cmin) / (cmax - cmin), bytes=True)
 
     if S is not None:
         satmask(rgba, S, out=rgba)
