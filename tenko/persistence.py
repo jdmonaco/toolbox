@@ -45,16 +45,22 @@ class AutomaticCache(object):
             if not hasattr(self, key):
                 log(key, prefix='MissingCacheKey', error=True)
 
-        klass = self.__class__.__name__
-        seed = klass if seed is None else seed
+        seed = self.__class__.__name__ if seed is None else seed
         self.seed = sum(map(ord, seed))
         if 'seed' not in self.key_params:
             self.key_params = tuple(self.key_params) + ('seed',)
-
         self.attrs = {k:getattr(self, k) for k in self.key_params}
-        self.hash = attr_hash(self, *self.key_params)
+
+        self._finish_init()
+
+    def _finish_init(self):
+        """
+        Finish updating hash and cache paths after construction or loading.
+        """
         self.rnd = random.RandomState(seed=self.seed)
-        self.cachename = '{}_{}'.format(naturalize(klass), self.hash)
+        self.hash = attr_hash(self, *self.key_params)
+        self.cachename = '{}_{}'.format(naturalize(self.__class__.__name__),
+                self.hash)
 
     def compute(self, context=None):
         """
@@ -109,19 +115,33 @@ class AutomaticCache(object):
         """
         return context.has_node(self.cachename, root=self.data_root)
 
-    def _load(self, context):
+    def _load(self, context, cache_path=None):
         """
         Load cached data keyed by the current specification.
         """
-        grp = context.get_node(self.cachename, root=self.data_root)
+        if cache_path is None:
+            grp = context.get_node(self.cachename, root=self.data_root)
+        else:
+            grp = context.get_node(root=cache_path)
 
         for name in self.cache_attrs:
             setattr(self, name, context.read_array(name, root=grp))
 
-        for name in self.save_attrs:
+        for name in self.save_attrs + self.key_params:
             setattr(self, name, grp._v_attrs[name])
+            self.attrs[name] = grp._v_attrs[name]
 
+        self._finish_init()
         context.out(grp._v_pathname, prefix='AutoCacheLoad')
+
+    @classmethod
+    def from_path(cls, context, cachepath):
+        """
+        Load a cached object from an existing path ('/<root>/<name>_<hash>').
+        """
+        obj = cls()
+        obj._load(context, cachepath)
+        return obj
 
     def clear_cache(self, context):
         """
