@@ -47,6 +47,8 @@ from numpy import (
         inf,
         isclose,
         isfinite,
+        isnan,
+        isscalar,
         lexsort,
         linspace,
         log,
