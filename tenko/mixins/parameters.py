@@ -99,7 +99,8 @@ class ParametersMixin(object):
         if self._tag:
             p.append(self._tag)
         if self._lastcall and 'tag' in self._lastcall:
-            p.append(self._lastcall['tag'])
+            if self._lastcall['tag'] is not None:
+                p.append(self._lastcall['tag'])
         psavefn = '-'.join(list(map(
             lambda s: s.strip().lower().replace(' ','-'), p))) + '.json'
         parampath = self.path(psavefn)
