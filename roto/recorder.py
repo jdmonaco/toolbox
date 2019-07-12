@@ -118,7 +118,7 @@ class ModelRecorder(object):
         assert type(name) is str, 'variable name must be a string'
         assert type(data) is np.ndarray, 'variable data must be an array'
 
-        if record == True:
+        if type(record) is bool and record == True:
             self.unit_slices[name] = sl = slice(None)
         elif np.iterable(record):
             self.unit_slices[name] = sl = list(record)
@@ -146,7 +146,7 @@ class ModelRecorder(object):
         assert type(data) is np.ndarray, 'spike/event data must be an array'
         assert data.dtype == bool, 'spike/event data must be boolean'
 
-        if record == True:
+        if type(record) is bool and record == True:
             self.unit_slices[name] = sl = slice(None)
         elif np.iterable(record):
             self.unit_slices[name] = sl = list(record)
