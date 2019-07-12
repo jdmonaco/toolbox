@@ -190,16 +190,17 @@ class ModelRecorder(object):
             units = self.unit_indexes[name][recdata]
             if units.size == 0:
                 continue
-            timing = np.zeros(len(unit), 'f') + self.t
-            self.units[name] = np.concatenate(self.units[name], units)
-            self.timing[name] = np.concatenate(self.units[name], timing)
+            timing = np.zeros(units.size, 'f') + self.t
+            self.units[name] = np.concatenate((self.units[name], units))
+            self.timing[name] = np.concatenate((self.timing[name], timing))
 
         # Trigger state and variable recording by decrease in t % t_rec
-        _rec_mod = self.t % self.dt_rec
-        between_samples = _rec_mod >= self._rec_mod
-        self._rec_mod = _rec_mod
-        if between_samples:
-            return
+        if self.dt_rec > self.dt:
+            _rec_mod = self.t % self.dt_rec
+            between_samples = _rec_mod >= self._rec_mod
+            self._rec_mod = _rec_mod
+            if between_samples:
+                return
 
         # Update recording index and time
         self.n_rec += 1

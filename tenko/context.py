@@ -639,8 +639,7 @@ class AbstractBaseContext(object):
                     if fn == basepy:
                         prevpyfile = histpath
 
-                self.out(f'Moved {len(runlist)} items to ' +
-                         histdir, prefix='FileBackup')
+                self.out(histdir, prefix='FileBackup')
 
             # Generate python module diff file
             if pyfile_copied and prevpyfile is not None:
