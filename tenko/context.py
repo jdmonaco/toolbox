@@ -518,8 +518,7 @@ class AbstractBaseContext(object):
             os.makedirs(self._tmpdir)
 
         # Clear out the temp directory for the run
-        tmplist = os.listdir(self._tmpdir)
-        for fn in tmplist:
+        for fn in os.listdir(self._tmpdir):
             path = os.path.join(self._tmpdir, fn)
             if os.path.isfile(path):
                 os.unlink(path)
@@ -527,6 +526,23 @@ class AbstractBaseContext(object):
                 p = subprocess.run(['rm', '-rf', path])
                 if p.returncode != 0:
                     self.out(path, prefix='ProblemRemoving', error=True)
+
+        # Copy the python module file to the run (temp) directory
+        pyfile = import_module(self.__class__.__module__).__file__
+        p = subprocess.run(['cp', pyfile, self._tmpdir])
+        pyfile_copied = p.returncode == 0
+        if not pyfile_copied:
+            self.out(pyfile, prefix='CopyFailed', warning=True)
+        _, basepy = os.path.split(pyfile)
+
+        # Find previous version of python file and generate a diff file
+        prev_rundir = os.path.join(self._ctxdir, step)
+        if tag: prev_rundir += '+{}'.format(sluggify(tag))
+        prev_pyfile = os.path.join(prev_rundir, basepy)
+        if pyfile_copied and os.path.isfile(prev_pyfile):
+            diffpath = os.path.join(self._tmpdir, '{}.diff'.format(basepy))
+            os.system(' '.join(['diff', '-w', prev_pyfile, pyfile,
+                    '>"{}"'.format(diffpath)]))
 
         # Start the AnyBar widget if available
         self.start_anybar()
@@ -610,15 +626,6 @@ class AbstractBaseContext(object):
             self._save_env()
             self._save_call_log()
 
-            # Copy the python module file to the run directory
-            pyfile = import_module(self.__class__.__module__).__file__
-            p = subprocess.run(['cp', pyfile, self._tmpdir])
-            pyfile_copied = p.returncode == 0
-            if not pyfile_copied:
-                self.out(pyfile, prefix='CopyFailed', warning=True)
-            _, basepy = os.path.split(pyfile)
-            prevpyfile = None
-
             # Final output (run) directory is based on method name & tag
             self._rundir = os.path.join(self._ctxdir, step)
             if tag: self._rundir += '+{}'.format(sluggify(tag))
@@ -636,20 +643,10 @@ class AbstractBaseContext(object):
                     runpath = os.path.join(self._rundir, fn)
                     histpath = os.path.join(histdir, fn)
                     os.rename(runpath, histpath)
-                    if fn == basepy:
-                        prevpyfile = histpath
-
                 self.out(histdir, prefix='FileBackup')
 
-            # Generate python module diff file
-            if pyfile_copied and prevpyfile is not None:
-                diffpath = os.path.join(self._tmpdir, '{}.diff'.format(basepy))
-                os.system(' '.join(['diff', '-w', prevpyfile, pyfile,
-                        '>"{}"'.format(diffpath)]))
-
             # Move all the current (temp) output files to the run directory
-            tmplist = os.listdir(self._tmpdir)
-            for fn in tmplist:
+            for fn in os.listdir(self._tmpdir):
                 os.rename(os.path.join(self._tmpdir, fn),
                           os.path.join(self._rundir, fn))
 
