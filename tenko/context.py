@@ -536,7 +536,7 @@ class AbstractBaseContext(object):
         _, basepy = os.path.split(pyfile)
 
         # Find previous version of python file and generate a diff file
-        prev_rundir = os.path.join(self._ctxdir, step)
+        prev_rundir = os.path.join(self._ctxdir, info['step'])
         if tag: prev_rundir += '+{}'.format(sluggify(tag))
         prev_pyfile = os.path.join(prev_rundir, basepy)
         if pyfile_copied and os.path.isfile(prev_pyfile):

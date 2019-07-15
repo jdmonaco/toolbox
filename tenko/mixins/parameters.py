@@ -139,11 +139,16 @@ class ParametersMixin(object):
         names = list(sliders.keys())
         widgets = [pn.widgets.FloatSlider(name=k, value=self.p[k], start=s,
                     end=e, step=step) for k, (s, e) in sliders.items()]
-        values = [s.param.value for s in widgets]
+        values = [w.param.value for w in widgets]
+
+        # Store a dict of the parameter-widget mappings as an attribute
+        if not hasattr(self, 'widgets'):
+            self.widgets = {}
+        self.widgets.update({w.name:w for w in widgets})
 
         @pn.depends(*values)
         def callback(*values):
-            params = {k:v for k, v in zip(names, values)}
+            params = {k:w.value for k, w in zip(names, widgets)}
             self.update_parameters(**params)
             return pn.Column(*widgets)
         return callback
