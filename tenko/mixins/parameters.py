@@ -142,8 +142,7 @@ class ParametersMixin(object):
         values = [w.param.value for w in widgets]
 
         # Store a dict of the parameter-widget mappings as an attribute
-        if not hasattr(self, 'widgets'):
-            self.widgets = {}
+        self._init_attr('widgets', {})
         self.widgets.update({w.name:w for w in widgets})
 
         @pn.depends(*values)
@@ -152,6 +151,65 @@ class ParametersMixin(object):
             self.update_parameters(**params)
             return pn.Column(*widgets)
         return callback
+
+    def get_panel_controls(self):
+        """
+        Get a column of buttons and text input for saving/restoring parameters.
+        """
+        paramfile_input = pn.widgets.TextInput(name='Filename',
+                placeholder='params')
+        filename_txt = pn.pane.Markdown('*(unsaved)*')
+        checkbox = pn.widgets.Checkbox(name='Save all', value=False)
+        save_btn = pn.widgets.Button(name='Save', button_type='primary')
+        restore_btn = pn.widgets.Button(name='Restore', button_type='success')
+        dflt_btn = pn.widgets.Button(name='Defaults', button_type='warning')
+        zero_btn = pn.widgets.Button(name='Zero', button_type='danger')
+
+        def save(value):
+            psavefn = paramfile_input.value
+            saveall = checkbox.value
+            if not psavefn.endswith('.json'):
+                psavefn += '.json'
+            parampath = psavefn
+            if not parampath.startswith('/'):
+                parampath = os.path.join(self._ctxdir, parampath)
+            params = {}
+            if saveall and hasattr(self, 'p'):
+                params.update(self.p.__odict__)
+            params.update({name:w.value for name, w in self.widgets.items()})
+            dumpjson(parampath, params)
+            filename_txt.object = parampath
+
+        def restore(value):
+            psavefn = paramfile_input.value
+            fullpath, params = self.get_parameters_from_file(psavefn)
+            filename_txt.object = fullpath
+            self.update_parameters(**params)
+            for name, value in params.items():
+                if name in self.widgets:
+                    self.widgets[name].value = value
+
+        def defaults(value):
+            if not hasattr(self, '_defaults'):
+                return
+            self.update_parameters(**self._defaults)
+            for name, value in self._defaults.items():
+                if name in self.widgets:
+                    self.widgets[name].value = value
+
+        def zeros(value):
+            min_values = {w.name:w.start for w in self.widgets.values()}
+            self.update_parameters(**min_values)
+            for name, value in min_values.items():
+                self.widgets[name].value = value
+
+        save_btn.param.watch(save, 'clicks')
+        restore_btn.param.watch(restore, 'clicks')
+        dflt_btn.param.watch(defaults, 'clicks')
+        zero_btn.param.watch(zeros, 'clicks')
+
+        return pn.Row(pn.Column(paramfile_input, filename_txt, checkbox),
+                      pn.Column(save_btn, restore_btn, dflt_btn, zero_btn))
 
     def load_environment_parameters(self, env):
         """
