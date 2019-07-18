@@ -1,12 +1,112 @@
 """
-Temporal trace plots.
+Data trace plots and rolling-window calculations.
 """
 
+import operator
 from collections import deque
 
+import numpy as np
 from numpy import cumsum, inf
 
 from .dicts import merge_two_dicts
+
+
+class FiringRateISI(object):
+
+    """
+    Compute ISI firing rates for a population spike vector.
+    """
+
+    def __init__(self, N, dt=1.0, t0=0.0, momentum=0.9, milliseconds=True):
+        self.dt = dt
+        self.t0 = t0
+        self.mu = momentum
+        self.t = None
+        self.tfactor = 1e-3 if milliseconds else 1.0
+        self.T = np.zeros((N,)) - inf
+        self.R = np.zeros((N,))
+        self.ISI = np.zeros((N,))
+
+    def update(self, spikes, t=None):
+        """
+        Update firing-rate traces with boolean spike vector.
+        """
+        if t is None:
+            if self.t is None:
+                self.t = self.t0
+            else:
+                self.t += self.dt
+        else:
+            self.t = t
+
+        self.ISI[:] = self.tfactor*(self.t - self.T)
+        self.R[:] = (1 - self.mu)*self.ISI**-1 + self.mu*self.R
+        self.T[spikes] = self.t
+
+    def get_rates(self):
+        """
+        Return the current firing rate vector.
+        """
+        return self.R
+
+    def get_mean_rate(self):
+        """
+        Return the population average firing rate.
+        """
+        return self.R.mean()
+
+
+class FiringRateWindow(object):
+
+    """
+    Compute rolling-window firing rates for a population spike vector.
+    """
+
+    def __init__(self, N, window=10.0, dt=1.0, t0=0.0, milliseconds=True):
+        self.t = None
+        self.t0 = t0
+        self.dt = dt
+        self.window = window
+        if milliseconds:
+            self.window /= 1e3
+        self.q_max = q_max = int(window / dt)
+        self.q_t = deque([], q_max)
+        self.spikes = np.zeros((N, q_max), 'u1')
+        self.R = np.zeros((N, q_max))
+        self.j = -1
+
+    def update(self, spikes, t=None):
+        """
+        Update firing-rate traces.
+        """
+        if t is None:
+            if self.t is None:
+                self.t = self.t0
+            else:
+                self.t += self.dt
+        else:
+            self.t = t
+
+        # Update the circular cursor index
+        self.j += 1
+        self.j %= self.q_max
+
+        # Modify the values at the cursor to the current spike input
+        self.q_t.append(self.t)
+        self.spikes[:,self.j] = spikes
+        self.R[:,self.j] = self.spikes.sum(axis=1) / self.window
+
+    def get_rates(self):
+        """
+        Return the current firing rate vector.
+        """
+        return self.R[:,self.j]
+
+    def get_mean_rate(self):
+        """
+        Return the population average firing rate.
+        """
+        return self.R[:,self.j].mean()
 
 
 class RealtimeTracesPlot(object):
@@ -16,7 +116,8 @@ class RealtimeTracesPlot(object):
     """
 
     def __init__(self, window=10.0, dt=1.0, t0=0.0, time_axis='x', fmt=None,
-        datapad=0.05, legend=True, datalim='auto', plot=False, **traces):
+        datapad=0.05, datalim='auto', legend=True, legend_format={},
+        plot=False, **traces):
         """
         Initialize with keywords of trace names and tuple values with an axis
         object and optional dictionary of plot arguments. Common plot arguments
@@ -72,9 +173,24 @@ class RealtimeTracesPlot(object):
         self.window = window
         self.time_axis = time_axis
         self.datapad = datapad
-        self.legend = legend
         self.datalim = datalim
         self.axobjs = set(self.ax.values())
+
+        # Enable dynamic legends - last value, numpy function
+        self.legfmt = dict(loc='upper left', frameon=False)
+        self.legfmt.update(legend_format)
+        self.legend = legend
+        self.legend_fn = None
+        self.legend_is_dynamic = True
+        self._legends = []
+        if legend == 'last':
+            self.legend_fn = operator.itemgetter(-1)
+        elif type(legend) is str and hasattr(np, legend):
+            self.legend_fn = getattr(np, legend)
+        elif callable(legend):
+            self.legend_fn = legend
+        else:
+            self.legend_is_dynamic = False
 
         if self.time_axis == 'x':
             self.setlim = {name:ax.set_ylim for name, ax in self.ax.items()}
@@ -94,8 +210,8 @@ class RealtimeTracesPlot(object):
         for name in self.names:
             self.lines[name] = self.ax[name].plot([], [], **self.fmt[name])[0]
             self.artists.append(self.lines[name])
-        if self.legend:
-            [ax.legend(loc='upper left', frameon=False) for ax in self.axobjs]
+        if not self.legend_is_dynamic:
+            self._legends = [ax.legend(**self.legfmt) for ax in self.axobjs]
         return self.artists
 
     def update(self, t=None, **traces):
@@ -123,6 +239,14 @@ class RealtimeTracesPlot(object):
             else:
                 self.q[name].append(float(value))
             self.lines[name].set_data(self.q_t, self.q[name])
+
+        # For dynamic legends, recreate the plot legend with new data
+        if self.legend_is_dynamic:
+            [leg.remove() for leg in self._legends]
+            for name, value in traces.items():
+                self.lines[name].set_label('{} = {:.3g}'.format(name,
+                    self.legend_fn(self.q[name])))
+            [ax.legend(**self.legfmt) for ax in self.axobjs]
 
         if self.time_axis is None:
             return
