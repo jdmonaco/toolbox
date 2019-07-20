@@ -241,7 +241,7 @@ class AbstractBaseContext(object):
         s += ['ModuleDir:'.ljust(col_w) + tilde(self._moduledir)]
         s += ['Datafile:'.ljust(col_w) + tilde(self._datafile.path())]
         s += ['ContextDir:'.ljust(col_w) + tilde(self._ctxdir)]
-        env_keys = self.c.__odict__.keys()
+        env_keys = self.c.keys()
         if env_keys:
             s += ['EnvKeys:'.ljust(col_w) + ', '.join(env_keys)]
         return '\n'.join(s) + '\n'
@@ -301,7 +301,7 @@ class AbstractBaseContext(object):
 
     # Key-value persistence
 
-    def get_json(*path, return_path=True):
+    def get_json(self, *path, return_path=True):
         """
         Search for a JSON file in context directories and return (path, data).
 
@@ -328,7 +328,7 @@ class AbstractBaseContext(object):
             return data
         return path, data
 
-    def read_json(*path, base=None):
+    def read_json(self, *path, base=None):
         """
         Read key-value data from JSON file at the specified path.
 
@@ -342,7 +342,7 @@ class AbstractBaseContext(object):
             data = json.load(fd)
         return data
 
-    def write_json(data, *path, base=None):
+    def write_json(self, data, *path, base=None):
         """
         Save key-value data to JSON file at the specified path.
 
