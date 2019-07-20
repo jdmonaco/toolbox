@@ -246,6 +246,34 @@ class AbstractBaseContext(object):
             s += ['EnvKeys:'.ljust(col_w) + ', '.join(env_keys)]
         return '\n'.join(s) + '\n'
 
+    def _init_attr(self, name, initval):
+        """
+        Helper method to initialize an instance attribute without overwriting.
+        """
+        if hasattr(self, name):
+            return
+        setattr(self, name, initval)
+
+    def _get_global_scope(self):
+        """
+        Helper method to access the global scope of the context.
+        """
+        return import_module(self.__class__.__module__).__dict__
+
+    def _get_config(self):
+        """
+        Helper method to access the shared configuration for the context.
+        """
+        cfg = '.'.join(self.__class__.__module__.split('.')[:-1] + ['config'])
+        return import_module(cfg).Config
+
+    def _get_state(self):
+        """
+        Helper method to access the shared state for the context.
+        """
+        cfg = '.'.join(self.__class__.__module__.split('.')[:-1] + ['state'])
+        return import_module(cfg).State
+
     # Mapping methods
 
     def __setitem__(self, key, item):
@@ -271,19 +299,78 @@ class AbstractBaseContext(object):
     def __iter__(self):
         return iter(self._env)
 
+    # Key-value persistence
+
+    def get_json(*path, return_path=True):
+        """
+        Search for a JSON file in context directories and return (path, data).
+
+        Note: The '.json' extension is automatically added if omitted.
+        """
+        fpath = os.path.join(*path)
+        if not fpath.endswith('.json'):
+            fpath += '.json'
+
+        if os.path.isabs(fpath):
+            if os.path.isfile(fpath):
+                path = fpath
+            else:
+                self.out(fpath, prefix='MissingJSONFile', error=True)
+                return
+        else:
+            path = self.search(fpath)
+            if path is None:
+                return
+
+        data = self.read_json(path)
+
+        if not return_path:
+            return data
+        return path, data
+
+    def read_json(*path, base=None):
+        """
+        Read key-value data from JSON file at the specified path.
+
+        Note: The '.json' extension is automatically added if omitted.
+        """
+        fpath = self.path(*path, base=base)
+        if not fpath.endswith('.json'):
+            fpath += '.json'
+
+        with open(fpath, 'r') as fd:
+            data = json.load(fd)
+        return data
+
+    def write_json(data, *path, base=None):
+        """
+        Save key-value data to JSON file at the specified path.
+
+        Note: The '.json' extension is automatically added if omitted.
+        """
+        fpath = self.path(*path, base=base)
+        if not fpath.endswith('.json'):
+            fpath += '.json'
+
+        with open(fpath, 'w') as fd:
+            json.dump({k:v for k,v in data.items() if v is not None},
+                       fd, indent=2, skipkeys=True, sort_keys=False,
+                       separators=(', ', ': '))
+
     def _save_env(self):
-        envpath = os.path.join(self._admindir, ENVFILE)
-        if not os.path.exists(self._admindir):
-            os.makedirs(self._admindir)
-        with open(envpath, 'w') as f:
-            json.dump(self._env, f, skipkeys=True, indent=2, sort_keys=False)
+        """
+        Save the persistent key-value store.
+        """
+        self.write_json(self._env, ENVFILE, base='admin')
 
     def _load_env(self):
-        self._env = dict()
-        sfn = os.path.join(self._admindir, ENVFILE)
+        """
+        Load the persistent key-value store if it exists.
+        """
+        self._init_attr('_env', AttrDict())
+        sfn = self.path(ENVFILE, base='admin')
         if not os.path.isfile(sfn): return
-        with open(sfn, 'r') as f:
-            self._env.update(json.load(f))
+        self._env.update(self.read_json(sfn))
 
     # Load/save methods
 
@@ -325,37 +412,36 @@ class AbstractBaseContext(object):
         return cls(**initargs)
 
     def _save(self):
-        """Save the constructor parameters for this object."""
-        initpath = os.path.join(self._admindir, INITFILE)
-        if not os.path.exists(self._admindir):
-            os.makedirs(self._admindir)
-
-        with open(initpath, 'w') as fd:
-            json.dump({
-                'desc'       : self._desc,
-                'tag'        : self._tag,
-                'projname'   : self._projname,
-                'version'    : self._version,
-                'repodir'    : self._repodir,
-                'rootdir'    : self._rootdir,
-                'datadir'    : self._datadir,
-                'resdir'     : self._resdir,
-                'regdir'     : self._regdir,
-                'moduledir'  : self._moduledir,
-                'h5file'     : self._datafile.path(),
-                'ctxdir'     : self._ctxdir,
-                'admindir'   : self._admindir,
-                'tmpdir'     : self._tmpdir,
-                'rundir'     : self._rundir,
-                'profile'    : self._profile,
-                'logcolor'   : self._logcolor,
-                'figfmt'     : self._figfmt,
-                'staticfigs' : self._staticfigs,
-                'quiet'      : self._quiet
-            }, fd, indent=2, sort_keys=False)
+        """
+        Save the constructor parameters for this object.
+        """
+        self.write_json({
+            'desc'       : self._desc,
+            'tag'        : self._tag,
+            'projname'   : self._projname,
+            'version'    : self._version,
+            'repodir'    : self._repodir,
+            'rootdir'    : self._rootdir,
+            'datadir'    : self._datadir,
+            'resdir'     : self._resdir,
+            'regdir'     : self._regdir,
+            'moduledir'  : self._moduledir,
+            'h5file'     : self._datafile.path(),
+            'ctxdir'     : self._ctxdir,
+            'admindir'   : self._admindir,
+            'tmpdir'     : self._tmpdir,
+            'rundir'     : self._rundir,
+            'profile'    : self._profile,
+            'logcolor'   : self._logcolor,
+            'figfmt'     : self._figfmt,
+            'staticfigs' : self._staticfigs,
+            'quiet'      : self._quiet,
+        }, INITFILE, base='admin')
 
     def register(self):
-        """Link this context into the results directory."""
+        """
+        Link this context into the results directory.
+        """
         self.close_logfile()
         self.close_datafile()
 
@@ -397,14 +483,56 @@ class AbstractBaseContext(object):
 
     # Run directory path methods
 
-    def path(self, *rpath):
-        """Get an absolute path in the run directory."""
-        if not os.path.exists(self._rundir):
-            os.makedirs(self._rundir)
-        return os.path.join(self._rundir, *rpath)
+    def path(self, *path, base=None):
+        """
+        Get an absolute path in the context directory structure.
+
+        Keyword `base` may be 'admin', 'run', 'temp', 'context', 'module',
+        'root', 'data', or 'results' (default 'run').
+        """
+        base = 'run' if base is None else base
+        if path and os.path.isabs(path[0]):
+            return os.path.join(*path)
+
+        try:
+            root = dict(
+                        admin = self._admindir,
+                        run = self._rundir,
+                        temp = self._tmpdir,
+                        context = self._ctxdir,
+                        module = self._moduledir,
+                        root = self._rootdir,
+                        data = self._datadir,
+                        results = self._resdir,
+                    )[base]
+        except KeyError:
+            self.out(base, prefix='UnknownDirType', error=True)
+            return os.path.join(*path)
+
+        if not os.path.isdir(root):
+            os.makedirs(root)
+
+        return os.path.join(root, *path)
+
+    def search(self, fpath):
+        """
+        Specific-to-general search in context directories for the named file.
+        """
+        for base in ('run', 'temp', 'admin', 'context', 'module',
+                     'root', 'data', 'results'):
+            path = self.path(fpath, base=base)
+            if os.path.isfile(path):
+                break
+        else:
+            self.out(fpath, prefix='FileSearchFailed', warning=True)
+            return
+
+        return path
 
     def mkdir(self, *rpath):
-        """Create a subdirectory within the run directory."""
+        """
+        Create a subdirectory within the run directory.
+        """
         dpath = self.path(*rpath)
         if os.path.isdir(dpath):
             return dpath
@@ -412,7 +540,9 @@ class AbstractBaseContext(object):
         return dpath
 
     def subfolder(self, *rpath, prefix=False):
-        """Make a unique subfolder under the analysis directory."""
+        """
+        Make a unique subfolder under the analysis directory.
+        """
         stem = self.path(*rpath)
         if prefix:
             path = uniquify(stem, fmt='%02d-%s', reverse_fmt=True)
