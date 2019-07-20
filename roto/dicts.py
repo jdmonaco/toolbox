@@ -72,6 +72,24 @@ class AttrDict(object):
         """
         return self.__adict__.get(key, default=default)
 
+    def keys(self):
+        """
+        Convenience method for dict-like keys.
+        """
+        return self.__adict__.keys()
+
+    def values(self):
+        """
+        Convenience method for dict-like values.
+        """
+        return self.__adict__.values()
+
+    def items(self):
+        """
+        Convenience method for dict-like items.
+        """
+        return self.__adict__.items()
+
     def __getitem__(self, key):
         return self.__adict__[key]
 
