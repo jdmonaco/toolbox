@@ -20,24 +20,24 @@ def merge_dicts(*dicts):
 class AttrDict(object):
 
     """
-    An ordered dictionary with mirrored attribute access.
+    A dictionary with mirrored attribute access.
     """
 
-    def __init__(self, odict=None):
-        if odict is None:
-            odict = dict()
-        self.__odict__ = odict
+    def __init__(self, adict=None):
+        if adict is None:
+            adict = dict()
+        self.__adict__ = adict
 
     def __getattr__(self, attr):
-        if attr not in self.__odict__:
+        if attr not in self.__adict__:
             raise AttributeError("'%s' attribute is not set" % attr)
-        return self.__odict__[attr]
+        return self.__adict__[attr]
 
     def __setattr__(self, attr, value):
-        if attr == '__odict__':
+        if attr == '__adict__':
             object.__setattr__(self, attr, value)
             return
-        self.__odict__[attr] = value
+        self.__adict__[attr] = value
 
     def __setitem__(self, key, item):
         if isinstance(key, str):
@@ -45,25 +45,50 @@ class AttrDict(object):
                 raise ValueError('key is not a valid name: {}'.format(key))
         else:
             raise ValueError('key is not a string: {}'.format(key))
-        self.__odict__[key] = item
+        self.__adict__[key] = item
+
+    def update(self, *d, **kwargs):
+        """
+        Convenience method for dict-like update.
+        """
+        assert len(d) < 2, 'up to one positional argument allowed'
+        self.__adict__.update(*d, **kwargs)
+
+    def backup_to(self, d):
+        """
+        Convenience method to update another dict.
+        """
+        d.update(self.__adict__)
+
+    def copy(self):
+        """
+        Convenience method for dict-like copy.
+        """
+        return AttrDict(adict=self.__adict__.copy())
+
+    def get(self, key, default=None):
+        """
+        Convenience method for dict-like get.
+        """
+        return self.__adict__.get(key, default=default)
 
     def __getitem__(self, key):
-        return self.__odict__[key]
+        return self.__adict__[key]
 
     def __delitem__(self, key):
-        del self.__odict__[key]
+        del self.__adict__[key]
 
     def __contains__(self, key):
-        return key in self.__odict__
+        return key in self.__adict__
 
     def __len__(self):
-        return len(self.__odict__)
+        return len(self.__adict__)
 
     def __iter__(self):
-        return iter(self.__odict__)
+        return iter(self.__adict__)
 
     def __str__(self):
-        return str(self.__odict__)
+        return str(self.__adict__)
 
     def __repr__(self):
         return f'AttrDict({self})'
