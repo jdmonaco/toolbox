@@ -8,7 +8,6 @@ except ImportError:
     import json
 
 import os
-from importlib import import_module
 
 try:
     import panel as pn
@@ -22,58 +21,14 @@ from maps.geometry import EnvironmentGeometry
 from roto.dicts import AttrDict
 
 
-def dumpjson(fpath, data):
-    """
-    Save key-value data to JSON file at the specified path.
-    """
-    kwjson = dict(indent=2, separators=(', ', ': '))
-    with open(fpath, 'w') as fd:
-        json.dump({k:v for k,v in data.items() if v is not None}, fd, **kwjson)
-
-
 class ParametersMixin(object):
-
-    def _init_attr(self, name, initval):
-        """
-        Initialize an instance attribute without overwriting.
-        """
-        if hasattr(self, name):
-            return
-        setattr(self, name, initval)
 
     def set_parameter_defaults(self, **dflts):
         """
         Set default values for parameter keys using keyword arguments.
         """
-        self._init_attr('_defaults', dict())
+        self._init_attr('_defaults', AttrDict())
         self._defaults.update(**dflts)
-
-    def get_parameters_from_file(self, pfile):
-        """
-        Retrieve parameter values from a JSON parameter file.
-
-        Returns (parampath, params) tuple.
-        """
-        if not pfile.endswith('.json'):
-            pfile += '.json'
-        if os.path.isfile(pfile):
-            pfilepath = pfile
-        else:
-            ctxpfile = os.path.join(self._ctxdir, pfile)
-            modpfile = os.path.join(self._moduledir, pfile)
-            if os.path.isfile(ctxpfile):
-                pfilepath = ctxpfile
-            elif os.path.isfile(modpfile):
-                pfilepath = modpfile
-            else:
-                self.out(pfile, prefix='MissingParamFile', error=True)
-                raise ValueError('Unable to find parameter file')
-        with open(pfilepath, 'r') as fd:
-            params_from_file = json.load(fd)
-        return pfilepath, params_from_file
-
-    def _get_module_scope(self):
-        return import_module(self.__class__.__module__).__dict__
 
     def set_parameters(self, pfile=None, **params):
         """
@@ -81,15 +36,14 @@ class ParametersMixin(object):
         """
         # Import values from parameters file if specified
         if pfile is not None:
-            fpath, fparams = self.get_parameters_from_file(pfile)
+            fpath, fparams = self.get_json(pfile)
             fparams.update(params)
             params = fparams
             self.out(fpath, prefix='ParameterFile')
 
         # Write JSON file with parameter defaults
         if hasattr(self, '_defaults'):
-            dfltpath = os.path.join(self._ctxdir, 'defaults.json')
-            dumpjson(dfltpath, self._defaults)
+            self.write_json(self._defaults, 'defaults.json', base='context')
             defaults = self._defaults
         else:
             defaults = dict()
@@ -103,15 +57,14 @@ class ParametersMixin(object):
                 p.append(self._lastcall['tag'])
         psavefn = '-'.join(list(map(
             lambda s: s.strip().lower().replace(' ','-'), p))) + '.json'
-        parampath = self.path(psavefn)
         dparams = defaults.copy()
         dparams.update(params)
-        dumpjson(parampath, dparams)
+        self.write_json(dparams, psavefn)
 
         # Set parameters as global variables in the object's module scope and as
         # an attribute dict `p` on the object itself
         self.out('Independent parameters:')
-        modscope = self._get_module_scope()
+        modscope = self._get_global_scope()
         modscope.update(dparams)
         self.p = AttrDict(dparams)
         for name, value in dparams.items():
@@ -130,7 +83,7 @@ class ParametersMixin(object):
                 self.out(name, prefix='UnknownParameter', warning=True)
                 continue
             self.p[name] = value
-            self._get_module_scope()[name] = value
+            self._get_global_scope()[name] = value
 
     def get_panel_widgets(self, step=0.01, **sliders):
         """
@@ -168,21 +121,16 @@ class ParametersMixin(object):
         def save(value):
             psavefn = paramfile_input.value
             saveall = checkbox.value
-            if not psavefn.endswith('.json'):
-                psavefn += '.json'
-            parampath = psavefn
-            if not parampath.startswith('/'):
-                parampath = os.path.join(self._ctxdir, parampath)
             params = {}
             if saveall and hasattr(self, 'p'):
-                params.update(self.p.__odict__)
+                self.p.backup_to(params)
             params.update({name:w.value for name, w in self.widgets.items()})
-            dumpjson(parampath, params)
+            self.write_json(params, psavefn, base='context')
             filename_txt.object = parampath
 
         def restore(value):
             psavefn = paramfile_input.value
-            fullpath, params = self.get_parameters_from_file(psavefn)
+            fullpath, params = self.get_json(psavefn)
             filename_txt.object = fullpath
             self.update_parameters(**params)
             for name, value in params.items():
@@ -215,7 +163,7 @@ class ParametersMixin(object):
         """
         Import environment geometry into the module and object scope.
         """
-        modscope = self._get_module_scope()
+        modscope = self._get_global_scope()
         modscope['Env'] = self.e = E = EnvironmentGeometry(env)
         Ivars = list(sorted(E.info.keys()))
         Avars = list(sorted(filter(lambda k: isinstance(getattr(E, k),
@@ -236,16 +184,8 @@ class ParametersMixin(object):
         """
         self.out('Dependent parameters:')
         self._init_attr('p', AttrDict())
-        modscope = self._get_module_scope()
+        modscope = self._get_global_scope()
         modscope.update(params)
         for name, value in params.items():
             self.p[name] = value
             self.out(f'- {name} = {value}', hideprefix=True)
-
-    def set_random_seed(self, key):
-        """
-        Set the numpy random seed according to a key string or hash.
-        """
-        newseed = sum(list(map(ord, key)))
-        seed(newseed)
-        self.out(f'{newseed} [key: \'{key}\']', prefix='RandomSeed')
