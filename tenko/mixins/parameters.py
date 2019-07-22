@@ -112,7 +112,8 @@ class ParametersMixin(object):
         paramfile_input = pn.widgets.TextInput(name='Filename',
                 placeholder='params')
         filename_txt = pn.pane.Markdown('*(unsaved)*')
-        checkbox = pn.widgets.Checkbox(name='Save all', value=False)
+        saveall_box = pn.widgets.Checkbox(name='Save all', value=False)
+        uniquify_box = pn.widgets.Checkbox(name='Force unique', value=False)
         save_btn = pn.widgets.Button(name='Save', button_type='primary')
         restore_btn = pn.widgets.Button(name='Restore', button_type='success')
         dflt_btn = pn.widgets.Button(name='Defaults', button_type='warning')
@@ -120,13 +121,14 @@ class ParametersMixin(object):
 
         def save(value):
             psavefn = paramfile_input.value
-            saveall = checkbox.value
+            saveall = saveall_box.value
+            unique = uniquify_box.value
             params = {}
             if saveall and hasattr(self, 'p'):
                 self.p.backup_to(params)
             params.update({name:w.value for name, w in self.widgets.items()})
-            self.write_json(params, psavefn, base='context')
-            filename_txt.object = parampath
+            p = self.write_json(params, psavefn, base='context', unique=unique)
+            filename_txt.object = p
 
         def restore(value):
             psavefn = paramfile_input.value
@@ -156,8 +158,22 @@ class ParametersMixin(object):
         dflt_btn.param.watch(defaults, 'clicks')
         zero_btn.param.watch(zeros, 'clicks')
 
-        return pn.Row(pn.Column(paramfile_input, filename_txt, checkbox),
-                      pn.Column(save_btn, restore_btn, dflt_btn, zero_btn))
+        return pn.Row(
+                    pn.Column(
+                        paramfile_input,
+                        filename_txt,
+                        pn.Row(
+                            saveall_box,
+                            uniquify_box,
+                        ),
+                    ),
+                    pn.Column(
+                        save_btn,
+                        restore_btn,
+                        dflt_btn,
+                        zero_btn,
+                    ),
+                )
 
     def load_environment_parameters(self, env):
         """

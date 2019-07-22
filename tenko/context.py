@@ -342,13 +342,13 @@ class AbstractBaseContext(object):
             data = json.load(fd)
         return data
 
-    def write_json(self, data, *path, base=None):
+    def write_json(self, data, *path, base=None, unique=False):
         """
         Save key-value data to JSON file at the specified path.
 
         Note: The '.json' extension is automatically added if omitted.
         """
-        fpath = self.path(*path, base=base)
+        fpath = self.path(*path, base=base, unique=False)
         if not fpath.endswith('.json'):
             fpath += '.json'
 
@@ -483,7 +483,7 @@ class AbstractBaseContext(object):
 
     # Run directory path methods
 
-    def path(self, *path, base=None):
+    def path(self, *path, base=None, unique=False):
         """
         Get an absolute path in the context directory structure.
 
@@ -512,7 +512,11 @@ class AbstractBaseContext(object):
         if not os.path.isdir(root):
             os.makedirs(root)
 
-        return os.path.join(root, *path)
+        fp = os.path.join(root, *path)
+        if os.path.isfile(fp) and unique:
+            stem, ext = os.path.splitext(fp)
+            fp = uniquify(stem, ext=ext, fmt='%s-%02d')
+        return fp
 
     def search(self, fpath):
         """

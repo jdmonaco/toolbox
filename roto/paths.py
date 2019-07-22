@@ -31,6 +31,8 @@ def uniquify(stem, ext="", fmt="%s%02d", reverse_fmt=False):
     """
     if ext:
         ext = ext.startswith('.') and ext or ('.' + ext)
+    if stem.endswith(ext):
+        stem = stem[:-len(ext)]
     if reverse_fmt:
         head, tail = os.path.split(stem)
         filename = lambda i: os.path.join(head, fmt%(i, tail)) + ext
