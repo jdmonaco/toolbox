@@ -766,8 +766,9 @@ class AbstractBaseContext(object):
             runlist = list(filter(lambda x: x != 'history',
                 os.listdir(self._rundir)))
             if len(runlist):
+                YMD = time.strftime('%Y-%m-%d', self._lastcall(time))
                 histdir = uniquify(self.mkdir('history'), fmt=os.path.join(
-                    '%s', '%02d'))
+                    '%s', f'{YMD}+%02d'))
                 os.makedirs(histdir)
                 for fn in runlist:
                     runpath = os.path.join(self._rundir, fn)
