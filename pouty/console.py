@@ -209,8 +209,15 @@ class ConsolePrinter(object):
             pre = ' '*len(pre)
 
         # Construct the display message
-        msg, args = msg[0], msg[1:]
-        msg = msg.format(*args, **fmt)
+        if len(msg) == 0:
+            raise ValueError('message argument is required')
+        elif len(msg) == 1:
+            msg = str(msg[0])
+        else:
+            msg, args = msg[0], msg[1:]
+            msg = msg.format(*args, **fmt)
+
+        # Prepend error/warning titles
         if error:
             msg = f'Error: {msg}'
         elif warning:
