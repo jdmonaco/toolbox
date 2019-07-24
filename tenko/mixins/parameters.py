@@ -2,12 +2,12 @@
 Context mixin for handling parameter defaults, values, and files.
 """
 
+import os
+
 try:
     import simplejson as json
 except ImportError:
     import json
-
-import os
 
 try:
     import panel as pn
@@ -119,6 +119,16 @@ class ParametersMixin(object):
         dflt_btn = pn.widgets.Button(name='Defaults', button_type='warning')
         zero_btn = pn.widgets.Button(name='Zero', button_type='danger')
 
+        # Construct nested dicts of gain and model parameters
+        State = self._get_state()
+        gain = {g.name:g.gain_sliders for g in State.network.neuron_groups}
+        neuron = {g.name:g.neuron_sliders for g in State.network.neuron_groups}
+
+        # TODO: This code is pretty slow, due to the group searches I think.
+        # It also does not really seem to work well. It should be fairly
+        # heavily debugged, which is difficult given that these are UI
+        # callbacks on a single thread. A Network dict of groups would help.
+
         def save(value):
             psavefn = paramfile_input.value
             saveall = saveall_box.value
@@ -127,6 +137,11 @@ class ParametersMixin(object):
             if saveall and hasattr(self, 'p'):
                 self.p.backup_to(params)
             params.update({name:w.value for name, w in self.widgets.items()})
+            for grp in State.network.neuron_groups:
+                params.update({f'g_{grp.name}_{k}':slider.value
+                               for k, slider in gain[grp.name].items()})
+                params.update({f'{k}_{grp.name}':slider.value
+                               for k, slider in neuron[grp.name].items()})
             p = self.write_json(params, psavefn, base='context', unique=unique)
             filename_txt.object = p
 
@@ -138,6 +153,26 @@ class ParametersMixin(object):
             for name, value in params.items():
                 if name in self.widgets:
                     self.widgets[name].value = value
+                elif name.startswith('g_'):
+                    _, post, pre = name.split('_')
+                    for grp in State.network.neuron_groups:
+                        if grp.name == post:
+                            break
+                    else:
+                        continue
+                    if pre in grp.gain:
+                        grp.gain[pre] = value
+                else:
+                    tokens = name.split('_')
+                    post = tokens[-1]
+                    pname = '_'.join(tokens[:-1])
+                    for grp in State.network.neuron_groups:
+                        if grp.name == post:
+                            break
+                    else:
+                        continue
+                    if pname in grp.spec:
+                        setattr(grp, pname, value)
 
         def defaults(value):
             if not hasattr(self, '_defaults'):
@@ -147,11 +182,25 @@ class ParametersMixin(object):
                 if name in self.widgets:
                     self.widgets[name].value = value
 
+            for grp in State.network.neuron_groups:
+                grp.reset()
+                for pre, slider in gain[grp.name].items():
+                    slider.value = grp.gain[pre]
+                for pname, slider in neuron[grp.name].items():
+                    slider.value = getattr(grp, pname)
+
         def zeros(value):
-            min_values = {w.name:w.start for w in self.widgets.values()}
-            self.update_parameters(**min_values)
-            for name, value in min_values.items():
-                self.widgets[name].value = value
+            for slider in self.widgets.values():
+                slider.value = slider.start
+                self.update_parameters(**{slider.name:slider.start})
+
+            for grp in State.network.neuron_groups:
+                for pre, slider in grp.gain_sliders.items():
+                    slider.value = 0.0
+                    grp.gain[pre] = 0.0
+                for pname, slider in grp.neuron_sliders.items():
+                    slider.value = slider.start
+                    setattr(grp, pname, slider.start)
 
         save_btn.param.watch(save, 'clicks')
         restore_btn.param.watch(restore, 'clicks')
@@ -162,10 +211,8 @@ class ParametersMixin(object):
                     pn.Column(
                         paramfile_input,
                         filename_txt,
-                        pn.Row(
-                            saveall_box,
-                            uniquify_box,
-                        ),
+                        saveall_box,
+                        uniquify_box,
                     ),
                     pn.Column(
                         save_btn,
