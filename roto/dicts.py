@@ -70,7 +70,7 @@ class AttrDict(object):
         """
         Convenience method for dict-like get.
         """
-        return self.__adict__.get(key, default=default)
+        return self.__adict__.get(key, default)
 
     def keys(self):
         """
