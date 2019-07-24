@@ -348,7 +348,7 @@ class AbstractBaseContext(object):
 
         Note: The '.json' extension is automatically added if omitted.
         """
-        fpath = self.path(*path, base=base, unique=False)
+        fpath = self.path(*path, base=base, unique=unique)
         if not fpath.endswith('.json'):
             fpath += '.json'
 
@@ -492,7 +492,11 @@ class AbstractBaseContext(object):
         """
         base = 'run' if base is None else base
         if path and os.path.isabs(path[0]):
-            return os.path.join(*path)
+            fp = os.path.join(*path)
+            if os.path.isfile(fp) and unique:
+                stem, ext = os.path.splitext(fp)
+                fp = uniquify(stem, ext=ext, fmt='%s-%02d')
+            return fp
 
         try:
             root = dict(
@@ -555,6 +559,23 @@ class AbstractBaseContext(object):
         subf = rpath[:-1] + (os.path.split(path)[1],)
         return self.mkdir(*subf)
 
+    def filename(self, tag=None, ext=None):
+        """
+        Create a filename based on the current step and tag.
+        """
+        step = self._lastcall['step']
+        calltag = self._lastcall['tag']
+
+        fn = step
+        if calltag is not None:
+            fn += '+{}'.format(sluggify(calltag))
+        if tag is not None:
+            fn += '+{}'.format(sluggify(tag))
+        if ext is not None:
+            ext = ext if ext.startswith('.') else f'.{ext}'
+            fn += ext
+
+        return fn
 
     # Console output methods
 
