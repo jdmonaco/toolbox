@@ -191,17 +191,17 @@ class ConsolePrinter(object):
         popup -- display the message with a system popup notification
         **fmt -- remaining kwargs provide formating substitutions
         """
+        # Handle a quick exit for non-debug-mode first
+        debug = fmt.pop('debug', False)
+        if debug and not DEBUG_MODE:
+            return
+
         # Parse the keyword arguments
         prefix = fmt.pop('prefix', self._prefix)
         hideprefix = fmt.pop('hideprefix', False)
-        debug = fmt.pop('debug', False)
         error = fmt.pop('error', False)
         warning = fmt.pop('warning', False)
         popup = fmt.pop('popup', False)
-
-        # No output for debug if not in debug mode
-        if debug and not DEBUG_MODE:
-            return
 
         # Construct the display prefix
         if debug:
