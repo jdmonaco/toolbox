@@ -44,6 +44,7 @@ class AutomaticCache(object):
         for key in self.key_params:
             if not hasattr(self, key):
                 log(key, prefix='MissingCacheKey', error=True)
+                raise ValueError(f'missing {key!r}')
 
         seed = self.__class__.__name__ if seed is None else seed
         self.seed = sum(map(ord, seed))
