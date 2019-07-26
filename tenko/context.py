@@ -208,6 +208,7 @@ class AbstractBaseContext(object):
         self.set_parallel_profile(self._profile)
 
         # Load the persistent namespace with attribute access
+        self._env = AttrDict()
         self._load_env()
         self.c = AttrDict(self._env)
 
@@ -246,33 +247,33 @@ class AbstractBaseContext(object):
             s += ['EnvKeys:'.ljust(col_w) + ', '.join(env_keys)]
         return '\n'.join(s) + '\n'
 
-    def _init_attr(self, name, initval):
-        """
-        Helper method to initialize an instance attribute without overwriting.
-        """
-        if hasattr(self, name):
-            return
-        setattr(self, name, initval)
+    # Namespace methods
 
-    def _get_global_scope(self):
+    def get_global_scope(self):
         """
         Helper method to access the global scope of the context.
         """
         return import_module(self.__class__.__module__).__dict__
 
-    def _get_config(self):
+    def get_config(self):
         """
         Helper method to access the shared configuration for the context.
         """
         cfg = '.'.join(self.__class__.__module__.split('.')[:-1] + ['config'])
         return import_module(cfg).Config
 
-    def _get_state(self):
+    def get_state(self):
         """
         Helper method to access the shared state for the context.
         """
-        cfg = '.'.join(self.__class__.__module__.split('.')[:-1] + ['state'])
-        return import_module(cfg).State
+        state = '.'.join(self.__class__.__module__.split('.')[:-1] + ['state'])
+        return import_module(state).State
+
+    def reset_state(self):
+        """
+        Helper method to reset the shared state for the context.
+        """
+        self.get_state().reset_state()
 
     # Mapping methods
 
@@ -356,6 +357,7 @@ class AbstractBaseContext(object):
             json.dump({k:v for k,v in data.items() if v is not None},
                        fd, indent=2, skipkeys=True, sort_keys=False,
                        separators=(', ', ': '))
+        return fpath
 
     def _save_env(self):
         """
@@ -367,7 +369,6 @@ class AbstractBaseContext(object):
         """
         Load the persistent key-value store if it exists.
         """
-        self._init_attr('_env', AttrDict())
         sfn = self.path(ENVFILE, base='admin')
         if not os.path.isfile(sfn): return
         self._env.update(self.read_json(sfn))
@@ -559,23 +560,33 @@ class AbstractBaseContext(object):
         subf = rpath[:-1] + (os.path.split(path)[1],)
         return self.mkdir(*subf)
 
-    def filename(self, tag=None, ext=None):
+    def filename(self, stem=None, tag=None, ext=None):
         """
-        Create a filename based on the current step and tag.
+        Create a filename out of many possible elements.
         """
-        step = self._lastcall['step']
-        calltag = self._lastcall['tag']
+        clstag = step = calltag = None
+        if self._tag is not None:
+            clstag = self._tag
+        if self._lastcall is not None:
+            step = self._lastcall['step']
+            calltag = self._lastcall['tag']
 
-        fn = step
+        fn = []
+        if stem is not None:
+            fn += [sluggify(stem)]
+        if clstag is not None:
+            fn += [sluggify(clstag)]
+        if step is not None:
+            fn += [sluggify(step)]
         if calltag is not None:
-            fn += '+{}'.format(sluggify(calltag))
+            fn += [sluggify(calltag)]
         if tag is not None:
-            fn += '+{}'.format(sluggify(tag))
+            fn += [sluggify(tag)]
         if ext is not None:
             ext = ext if ext.startswith('.') else f'.{ext}'
-            fn += ext
+            fn += [ext]
 
-        return fn
+        return '+'.join(fn)
 
     # Console output methods
 
