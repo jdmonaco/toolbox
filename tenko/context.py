@@ -349,9 +349,13 @@ class AbstractBaseContext(object):
 
         Note: The '.json' extension is automatically added if omitted.
         """
-        fpath = self.path(*path, base=base, unique=unique)
-        if not fpath.endswith('.json'):
-            fpath += '.json'
+        p = os.path.join(*path)
+        if not p:
+            self.out('No path specified', prefix='WriteJSON', error=True)
+            raise ValueError('empty path')
+        if not p.endswith('.json'):
+            p = f'{p}.json'
+        fpath = self.path(p, base=base, unique=unique)
 
         with open(fpath, 'w') as fd:
             json.dump({k:v for k,v in data.items() if v is not None},
@@ -520,7 +524,7 @@ class AbstractBaseContext(object):
         fp = os.path.join(root, *path)
         if os.path.isfile(fp) and unique:
             stem, ext = os.path.splitext(fp)
-            fp = uniquify(stem, ext=ext, fmt='%s-%02d')
+            fp = uniquify(stem, ext=ext)
         return fp
 
     def search(self, fpath):
@@ -603,6 +607,11 @@ class AbstractBaseContext(object):
             self.set_anybar_color(color)
         self._out(*args, **kwargs)
 
+    def debug(self, *args, **kwargs):
+        """Display a debugging message. Arguments passed to `out(...)`."""
+        kwargs.update(debug=True)
+        self.out(*args, **kwargs)
+
     def printf(self, *args, **kwargs):
         """Send characters to stdout."""
         self._out.printf(*args, **kwargs)
@@ -616,13 +625,30 @@ class AbstractBaseContext(object):
     def hline(self, color='white'):
         self._out.hline(color=color)
 
-    def start_anybar(self, color='white'):
+    def launch_anybar(self, color='white'):
         """Create an AnyBar instance for controlling an AnyBar widget."""
         if self._anybar is not None: return
         ab = AnyBar()
         if ab.pid:
             self._anybar = ab
             self.set_anybar_color(color)
+
+    def quit_anybar(self):
+        """Quit any associated AnyBar instance."""
+        if self._anybar is not None:
+            self._anybar.quit()
+            self._anybar = None
+
+    def toggle_anybar(self, color1='orange', color2='purple'):
+        """
+        Toggler the AnyBar between two colors as an activity indicator.
+        """
+        if self._anybar is None: return
+        if self._anybar.color not in (color1, color2):
+            self.set_anybar_color(color1)
+            return
+        self.set_anybar_color(
+                {color1:color2, color2:color1}[self._anybar.color])
 
     def set_anybar_color(self, color):
         """If there is an active AnyBar widget, set its color."""
@@ -711,7 +737,7 @@ class AbstractBaseContext(object):
                     '>"{}"'.format(diffpath)]))
 
         # Start the AnyBar widget if available
-        self.start_anybar()
+        self.launch_anybar()
 
         # Save any pre-run changes to the key-value store
         self._save_env()
@@ -826,9 +852,7 @@ class AbstractBaseContext(object):
 
         self.close_logfile()
         self._running = False
-        if self._anybar is not None:
-            self._anybar.quit()
-            self._anybar = None
+        self.quit_anybar()
 
         if not status['OK']:
             raise RuntimeError('Stopping due to exception in {}'.format(step))
