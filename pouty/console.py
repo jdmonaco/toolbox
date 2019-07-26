@@ -3,8 +3,8 @@ Colorful bash output.
 """
 
 import os
+import time
 from sys import stdout, stderr, platform
-from time import strftime
 
 from roto.paths import tilde
 
@@ -199,11 +199,16 @@ class ConsolePrinter(object):
         warning = fmt.pop('warning', False)
         popup = fmt.pop('popup', False)
 
+        # No output for debug if not in debug mode
+        if debug and not DEBUG_MODE:
+            return
+
         # Construct the display prefix
         if debug:
-            prefix = 'debug'
-        elif '%' in prefix:
-            prefix = strftime(prefix)
+            prefix = '[%Y-%m-%d+%H:%M+%S.{}] debug'.format(
+                    str(time.time()).split('.')[-1][:6].ljust(6, '0'))
+        if '%' in prefix:
+            prefix = time.strftime(prefix)
         pre = f'{prefix}: '
         if hideprefix:
             pre = ' '*len(pre)
