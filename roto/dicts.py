@@ -54,12 +54,6 @@ class AttrDict(object):
         assert len(d) < 2, 'up to one positional argument allowed'
         self.__adict__.update(*d, **kwargs)
 
-    def backup_to(self, d):
-        """
-        Convenience method to update another dict.
-        """
-        d.update(self.__adict__)
-
     def copy(self):
         """
         Convenience method for dict-like copy.
