@@ -634,11 +634,13 @@ class AbstractBaseContext(object):
             self._anybar = ab
             self.set_anybar_color(color)
 
-    def quit_anybar(self):
+    def quit_anybar(self, killall=False):
         """Quit any associated AnyBar instance."""
         if self._anybar is not None:
             self._anybar.quit()
             self._anybar = None
+        if killall:
+            AnyBar.quit_all()
 
     def toggle_anybar(self, color1='orange', color2='purple'):
         """

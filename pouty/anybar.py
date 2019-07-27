@@ -95,9 +95,10 @@ class AnyBar(object):
         """
         insts = cls._instances.copy()
         [abar.quit() for abar in reversed(insts)]
-        if len(cls._instances):
-            print('AnyBar: could not quit all ({",".join(cls._instances)})',
-                    file=sys.stderr)
+        cls._instances.clear()
+
+        # Kill any remaining instances (e.g., from previous processes)
+        Shell.killall('AnyBar')
 
     def set_color(self, color=None):
         """

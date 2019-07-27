@@ -31,6 +31,19 @@ class Shell(object):
         return None
 
     @staticmethod
+    def killall(progname):
+        """
+        Use the `killall` shell command to kill every process with the name.
+        """
+        killall = Shell.which('killall')
+        if killall is None:
+            print('Shell.killall: not on path', file=sys.stderr)
+            return
+        cmd = [killall, progname]
+        res = subp.run(cmd)
+        return res.returncode
+
+    @staticmethod
     def pgrep(pattern, newest=False, oldest=False):
         """
         Run pgrep on the given pattern and return the process ids.
