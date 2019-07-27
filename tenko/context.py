@@ -273,7 +273,8 @@ class AbstractBaseContext(object):
         """
         Helper method to reset the shared state for the context.
         """
-        self.get_state().reset_state()
+        state = '.'.join(self.__class__.__module__.split('.')[:-1] + ['state'])
+        import_module(state).reset_state()
 
     # Mapping methods
 
