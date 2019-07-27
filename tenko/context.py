@@ -577,21 +577,23 @@ class AbstractBaseContext(object):
             calltag = self._lastcall['tag']
 
         fn = []
-        if stem is not None:
+        if stem:
             fn += [sluggify(stem)]
-        if clstag is not None:
+        if clstag:
             fn += [sluggify(clstag)]
-        if step is not None:
+        if step:
             fn += [sluggify(step)]
-        if calltag is not None:
+        if calltag:
             fn += [sluggify(calltag)]
-        if tag is not None:
+        if tag:
             fn += [sluggify(tag)]
-        if ext is not None:
-            ext = ext if ext.startswith('.') else f'.{ext}'
-            fn += [ext]
 
-        return '+'.join(fn)
+        if ext is None:
+            ext = ''
+        else:
+            ext = ext if ext.startswith('.') else f'.{ext}'
+
+        return '+'.join(fn) + ext
 
     # Console output methods
 
