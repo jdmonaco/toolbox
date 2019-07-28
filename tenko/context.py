@@ -30,7 +30,6 @@ from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
 from roto.strings import snake2title, sluggify, naturalize
 from roto.dicts import AttrDict, merge_two_dicts
-from floyd.spec import Spec
 
 from . import parallel
 from .repo import git_revision
@@ -500,9 +499,8 @@ class AbstractBaseContext(object):
         base = 'run' if base is None else base
         if path and os.path.isabs(path[0]):
             fp = os.path.join(*path)
-            if os.path.isfile(fp) and unique:
-                stem, ext = os.path.splitext(fp)
-                fp = uniquify(stem, ext=ext, fmt='%s-%02d')
+            if unique:
+                fp = uniquify(*os.path.splitext(fp))
             return fp
 
         try:
@@ -525,8 +523,7 @@ class AbstractBaseContext(object):
 
         fp = os.path.join(root, *path)
         if os.path.isfile(fp) and unique:
-            stem, ext = os.path.splitext(fp)
-            fp = uniquify(stem, ext=ext)
+            fp = uniquify(*os.path.splitext(fp))
         return fp
 
     def search(self, fpath):
@@ -560,9 +557,9 @@ class AbstractBaseContext(object):
         """
         stem = self.path(*rpath)
         if prefix:
-            path = uniquify(stem, fmt='%02d-%s', reverse_fmt=True)
+            path = uniquify(stem, fmt='{:02d}-{stem!s}')
         else:
-            path = uniquify(stem, fmt='%s-%02d')
+            path = uniquify(stem)
         subf = rpath[:-1] + (os.path.split(path)[1],)
         return self.mkdir(*subf)
 
@@ -632,7 +629,7 @@ class AbstractBaseContext(object):
     def launch_anybar(self, color='white'):
         """Create an AnyBar instance for controlling an AnyBar widget."""
         if self._anybar is not None: return
-        ab = AnyBar()
+        ab = AnyBar(singleton=True)
         if ab.pid:
             self._anybar = ab
             self.set_anybar_color(color)
@@ -836,9 +833,9 @@ class AbstractBaseContext(object):
             runlist = list(filter(lambda x: x != 'history',
                 os.listdir(self._rundir)))
             if len(runlist):
-                YMD = time.strftime('%Y-%m-%d', self._lastcall(time))
-                histdir = uniquify(self.mkdir('history'), fmt=os.path.join(
-                    '%s', f'{YMD}+%02d'))
+                YMD = time.strftime('%Y-%m-%d', self._lastcall['time'])
+                histdir = uniquify(os.path.join(self.mkdir('history'), YMD),
+                                    fmt='{stem!s}+{u:02d}')
                 os.makedirs(histdir)
                 for fn in runlist:
                     runpath = os.path.join(self._rundir, fn)
@@ -1259,8 +1256,8 @@ class AbstractBaseContext(object):
 
         return fig
 
-    def savefig(self, label=None, basepath=None, tag=None, tight_padding=None,
-        closeafter=False, **savefig):
+    def savefig(self, label=None, base=None, tag=None, unique=True,
+        tight_padding=None, closeafter=False, **savefig):
         """Save an open figure as an image file.
 
         Arguments:
@@ -1277,15 +1274,15 @@ class AbstractBaseContext(object):
             return
 
         # Set label-based path if optional base path not specified
-        stem = self.path(label) if basepath is None else basepath
+        fn = label
         if tag:
-            stem += f'-{tag}'
+            fn += f'+{tag}'
 
         # Generate unique path with the given format extension
         ext = savefig.pop('format', self._figfmt)
         if ext == 'mpl':
             ext = mpl.rcParams['savefig.format']
-        path = uniquify(stem, ext=ext, fmt='%s-%02d')
+        path = self.path(f'{fn}.{ext}', base=base, unique=unique)
         parent, img = os.path.split(path)
         if not os.path.isdir(parent):
             os.makedirs(parent)

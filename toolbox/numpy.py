@@ -36,6 +36,7 @@ from numpy import (
         clip,
         cos,
         diag,
+        diff,
         dot,
         empty,
         empty_like,
