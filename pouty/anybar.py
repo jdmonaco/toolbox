@@ -10,7 +10,7 @@ import subprocess
 from .shell import Shell
 
 
-INITIAL_PORT = 1738
+BASE_PORT = 1738
 COLORS = ( 'white', 'red', 'orange', 'yellow', 'green', 'cyan',
            'blue', 'purple', 'black', 'question', 'exclamation' )
 
@@ -26,11 +26,16 @@ class AnyBar(object):
 
     _instances = []
 
-    def __init__(self, color=None, port=None, pid=None):
+    def __init__(self, color=None, port=None, pid=None, singleton=True):
         self.socket = _socket
         self.color = 'white' if color is None else color
-        self.port = port
-        self.pid = pid
+        if singleton:
+            self.port = BASE_PORT
+            running = Shell.pgrep('AnyBar')
+            self.pid = running[0] if running else pid
+        else:
+            self.port = port
+            self.pid = pid
         if sys.platform.lower() != 'darwin':
             print(f'Warning: AnyBar not available ({sys.platform})',
                     file=sys.stderr)
@@ -63,7 +68,7 @@ class AnyBar(object):
 
         # Set the port based on number of currently running AnyBars
         if not already and self.port is None:
-            self.port = INITIAL_PORT + len(running)
+            self.port = BASE_PORT + len(running)
 
         # Start a new instance of the AnyBar application
         if self.pid is None:
@@ -80,13 +85,13 @@ class AnyBar(object):
         Quit the AnyBar instance.
         """
         res = subprocess.run(['kill', '-HUP', str(self.pid)])
-        if res.returncode == 0:
-            self.pid = None
-            self.port = None
-        else:
-            print(f'AnyBar: could not quit instance ({self.pid})',
-                    file=sys.stderr)
-        self.__class__._instances.remove(self)
+        if res.returncode != 0:
+            self.__class__.quit_all()
+            self.__class__._instances.clear()
+        if self in self.__class__._instances:
+            self.__class__._instances.remove(self)
+        self.pid = None
+        self.port = None
 
     @classmethod
     def quit_all(cls):

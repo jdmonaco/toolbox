@@ -224,9 +224,9 @@ class ConsolePrinter(object):
 
         # Prepend error/warning titles
         if error:
-            msg = f'Error: {msg}'
+            msg = f'Error: {tilde(msg)}'
         elif warning:
-            msg = f'Warning: {msg}'
+            msg = f'Warning: {tilde(msg)}'
 
         # Console color print with prefix and indentation
         if error:
@@ -266,7 +266,7 @@ class ConsolePrinter(object):
             print(' ' * pre_len + msgf(line), file=console)
 
         # Timestamped output to the file if it's open
-        if self._isopen():
+        if self._isopen() and not debug:
             if self._timestamp:
                 fmt = '%H:%M:%S %m-%d-%y'
                 self._fd.write('[ %s ]  ' % strftime(fmt))
