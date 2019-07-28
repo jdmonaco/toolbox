@@ -12,7 +12,7 @@ def tilde(p):
         return f'~{p[len(HOME):]}'
     return p
 
-def uniquify(stem, ext='', fmt='{!s}-{:02d}', reverse_fmt=False):
+def uniquify(stem, ext=None, fmt='{stem!s}-{u:02d}{ext}'):
     """
     Insert a unique identifier into a file or directory path
 
@@ -30,19 +30,15 @@ def uniquify(stem, ext='', fmt='{!s}-{:02d}', reverse_fmt=False):
     Returns a modified path based on **stem**, a unique identifier and **ext**,
     as formatted by **fmt**.
     """
+    ext = '' if ext is None else ext
     if ext:
-        ext = ext if ext.startswith('.') else f'.{ext}'
-    if stem.endswith(ext):
-        stem = stem[:-len(ext)]
-    fullfmt = fmt + ext
-    if reverse_fmt:
-        head, tail = os.path.split(stem)
-        filename = lambda i: os.path.join(head, fullfmt.format(i, tail))
-    else:
-        filename = lambda i: fullfmt.format(stem, i)
-    i = 0
-    nextfn = filename(0)
-    while os.path.exists(nextfn):
-        i += 1
-        nextfn = filename(i)
-    return nextfn
+        if not ext.startswith('.'):
+            ext = f'.{ext}'
+        if stem.endswith(ext):
+            stem, _ = os.path.splitext(stem)
+    u = -1
+    pth = f'{stem}{ext}'
+    while os.path.exists(pth):
+        u += 1
+        pth = fmt.format(stem=stem, u=u, ext=ext)
+    return pth
