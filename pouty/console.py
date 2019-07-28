@@ -205,8 +205,8 @@ class ConsolePrinter(object):
 
         # Construct the display prefix
         if debug:
-            prefix = '[%Y-%m-%d+%H:%M+%S.{}] debug'.format(
-                    str(time.time()).split('.')[-1][:6].ljust(6, '0'))
+            prefix = '[%Y-%m-%d+%H:%M+%S.{}] {}'.format(
+                    str(time.time()).split('.')[-1][:6].ljust(6, '0'), prefix)
         if '%' in prefix:
             prefix = time.strftime(prefix)
         pre = f'{prefix}: '

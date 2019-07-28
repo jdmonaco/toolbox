@@ -30,6 +30,7 @@ from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
 from roto.strings import snake2title, sluggify, naturalize
 from roto.dicts import AttrDict, merge_two_dicts
+from floyd.spec import Spec
 
 from . import parallel
 from .repo import git_revision
@@ -644,7 +645,7 @@ class AbstractBaseContext(object):
         if killall:
             AnyBar.quit_all()
 
-    def toggle_anybar(self, color1='orange', color2='purple'):
+    def toggle_anybar(self, color1='green', color2='purple'):
         """
         Toggler the AnyBar between two colors as an activity indicator.
         """
@@ -657,7 +658,9 @@ class AbstractBaseContext(object):
 
     def set_anybar_color(self, color):
         """If there is an active AnyBar widget, set its color."""
-        if self._anybar is None: return
+        if self._anybar is None:
+            self.launch_anybar(color=color)
+            return
         self._anybar.set_color(color)
 
     # Logging methods
@@ -742,7 +745,7 @@ class AbstractBaseContext(object):
                     '>"{}"'.format(diffpath)]))
 
         # Start the AnyBar widget if available
-        self.launch_anybar()
+        self.launch_anybar('question')
 
         # Save any pre-run changes to the key-value store
         self._save_env()
@@ -815,7 +818,7 @@ class AbstractBaseContext(object):
 
         return result
 
-    def  _step_exit(self, method, args, kwargs, status):
+    def _step_exit(self, method, args, kwargs, status):
         step = method.__name__
         tag = self._lastcall['tag']
 
@@ -1172,6 +1175,10 @@ class AbstractBaseContext(object):
         for name, value in call['params']:
             na[name] = value
         for kwd, value in call['kwvalues'].items():
+            if callable(value):
+                continue
+            if hasattr(value, '_speckeys'):
+                value = value.as_dict()
             na[kwd] = value
 
     # Figure methods
