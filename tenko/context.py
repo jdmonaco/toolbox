@@ -883,6 +883,22 @@ class AbstractBaseContext(object):
             logfd.write('Revision: {}\n\n'.format(call['revision']))
             logfd.writelines(history)
 
+    def current_step(self):
+        """
+        Convenience method to return the name of the current step (or None).
+        """
+        if self._lastcall is None:
+            return None
+        return self._lastcall['step']
+
+    def current_tag(self):
+        """
+        Convenience method to return the name of the current run tag (or None).
+        """
+        if self._lastcall is None:
+            return None
+        return self._lastcall['tag']
+
     # Parallel methods
 
     def set_parallel_profile(self, profile):
