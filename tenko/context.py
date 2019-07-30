@@ -1311,7 +1311,7 @@ class AbstractBaseContext(object):
         self._savefig.update(savefig)
 
         self._figures[label].savefig(path, **self._savefig)
-        self.out('Saved: {}', path)
+        self.out(path, prefix='SavedFigure')
         self._savefig_path = path
 
         if closeafter:
