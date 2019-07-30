@@ -172,8 +172,9 @@ class AbstractBaseContext(object):
         self._resdir = self._arg('resdir', resdir, dflt=os.path.join(
             self._rootdir, 'results'))
         self._regdir = self._arg('regdir', regdir, path=True, optional=True)
+        self._modname = self.__class__.__module__.split('.')[-1]
         self._moduledir = self._arg('moduledir', moduledir, dflt=os.path.join(
-            self._rootdir, self.__class__.__module__.split('.')[-1]))
+            self._rootdir, self._modname))
         self._h5file = self._arg('h5file', h5file, dflt=os.path.join(
             self._moduledir, f'{self._name}.h5'))
 
@@ -563,26 +564,29 @@ class AbstractBaseContext(object):
         subf = rpath[:-1] + (os.path.split(path)[1],)
         return self.mkdir(*subf)
 
-    def filename(self, stem=None, tag=None, ext=None):
+    def filename(self, stem=None, tag=None, ext=None, use_clstag=False,
+        use_modname=False, use_step=False, use_runtag=False):
         """
         Create a filename out of many possible elements.
         """
-        clstag = step = calltag = None
+        clstag = step = runtag = None
         if self._tag is not None:
             clstag = self._tag
         if self._lastcall is not None:
             step = self._lastcall['step']
-            calltag = self._lastcall['tag']
+            runtag = self._lastcall['tag']
 
         fn = []
         if stem:
             fn += [sluggify(stem)]
-        if clstag:
+        if use_clstag and clstag:
             fn += [sluggify(clstag)]
-        if step:
+        if use_modname:
+            fn += [self._modname]
+        if use_step and step:
             fn += [sluggify(step)]
-        if calltag:
-            fn += [sluggify(calltag)]
+        if use_runtag and runtag:
+            fn += [sluggify(runtag)]
         if tag:
             fn += [sluggify(tag)]
 

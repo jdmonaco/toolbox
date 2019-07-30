@@ -3,6 +3,7 @@ Colorful bash output.
 """
 
 import os
+import re
 import time
 from sys import stdout, stderr, platform
 
@@ -37,6 +38,7 @@ def orange(s):    return _color_format("1;31", s)  # lightred
 def yellow(s):    return _color_format("0;33", s)  # brown
 def ochre(s):     return _color_format("0;33", s)  # brown
 def green(s):     return _color_format("0;32", s)  # green
+def default(s):   return _color_format("", s)      # terminal default
 
 
 # Synonyms for backwards compatibility
@@ -72,7 +74,8 @@ COL_FUNC = {
     'lightgreen' : _lightgreen,
     'brown'      : _brown,
     'lightblue'  : _lightblue,
-    'lightcyan'  : _lightcyan
+    'lightcyan'  : _lightcyan,
+    'default'  : default,
 }
 
 COLORS = list(COL_FUNC.keys())
@@ -89,8 +92,7 @@ class ConsolePrinter(object):
     """
 
     def __init__(self, prefix='[%Y-%m-%d %H:%M:%S] ', prefix_color='cyan',
-        message_color='lightgray', quiet=False, outputfile=None,
-        timestamp=True):
+        message_color='default', quiet=False, outputfile=None, timestamp=True):
         """Create a colorful callable console printing object.
 
         Keyword arguments:
@@ -238,8 +240,8 @@ class ConsolePrinter(object):
             msgf = orange
             console = stderr
         elif debug:
-            pref = dimgray
-            msgf = dimgray
+            pref = white
+            msgf = white
             console = stderr
         else:
             pref = self._pref
@@ -272,10 +274,12 @@ class ConsolePrinter(object):
                 self._fd.write('[ %s ]  ' % strftime(fmt))
             if prefix != self._prefix and '%' not in prefix and not hideprefix:
                 self._fd.write(pre)
-            if error:
-                self._fd.write('! -> Error: ')
-            elif warning:
-                self._fd.write('! -> Warning: ')
+            if error or warning:
+                self._fd.write('! -> ')
+
+            # Strip any escape codes (e.g., for color) out of the msg
+            msg = re.sub('(\x1b\[\d;\d\dm)|(\x1b\[0m)', '', msg)
+
             self._fd.write(msg + '\n')
             self._fd.flush()
 
