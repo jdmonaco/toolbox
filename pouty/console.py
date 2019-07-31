@@ -240,8 +240,8 @@ class ConsolePrinter(object):
             msgf = orange
             console = stderr
         elif debug:
-            pref = white
-            msgf = white
+            pref = dimgray
+            msgf = smoke
             console = stderr
         else:
             pref = self._pref
