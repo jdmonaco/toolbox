@@ -294,6 +294,11 @@ class ConsolePrinter(object):
             else:
                 self._notifier.notify(msg, pre[:-2])
 
+    def debug(self, *msg, **fmt):
+        """Output in debug mode."""
+        fmt.update(debug=True)
+        self.__call__(*msg, **fmt)
+
     def box(self, filled=True, color=None):
         """Draw a Unicode box glyph to the console."""
         self.printf('\u25a1\u25a0'[filled], color=color)
