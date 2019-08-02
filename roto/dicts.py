@@ -93,6 +93,9 @@ class AttrDict(object):
     def __contains__(self, key):
         return key in self.__adict__
 
+    def __bool__(self):
+        return bool(self.__adict__)
+
     def __len__(self):
         return len(self.__adict__)
 
