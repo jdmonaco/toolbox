@@ -23,10 +23,11 @@ class AttrDict(object):
     A dictionary with mirrored attribute access.
     """
 
-    def __init__(self, adict=None):
+    def __init__(self, adict=None, **kwargs):
         if adict is None:
             adict = dict()
         self.__adict__ = adict
+        self.update(kwargs)
 
     def __getattr__(self, attr):
         if attr not in self.__adict__:
@@ -103,10 +104,19 @@ class AttrDict(object):
         return iter(self.__adict__)
 
     def __str__(self):
-        return str(self.__adict__)
+        klass = self.__class__.__name__
+        indent = ' '*4
+        r = f'{klass}('
+        if len(self):
+            r += '\n'
+        for k, v in self.items():
+            lines = f'{k} = {repr(v)},'.split('\n')
+            for line in lines:
+                r += indent + line + '\n'
+        return r + ')'
 
     def __repr__(self):
-        return f'AttrDict({self})'
+        return f'{self.__class__.__name__}({self.__adict__})'
 
 
 class Tree(dict):
