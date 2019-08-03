@@ -49,6 +49,18 @@ class AnyBar(object):
     def __repr__(self):
         return str(self)
 
+    @classmethod
+    def toggle(cls, color1='green', color2='purple'):
+        """
+        Toggle the most recent AnyBar instance between two colors.
+        """
+        if not cls._instances: return
+        abar = cls._instances[-1]
+        if abar.color not in (color1, color2):
+            abar.set_anybar_color(color1)
+            return
+        abar.set_color({color1:color2, color2:color1}[abar.color])
+
     def start(self):
         """
         Start a new AnyBar instance.
