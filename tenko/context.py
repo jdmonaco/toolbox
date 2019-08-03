@@ -105,6 +105,39 @@ class AbstractBaseContext(object):
         _Class.logcolor = logcolor
         return _Class
 
+    @classmethod
+    def pop_tenko_args(kwargs):
+        """
+        For subclasses that process keyword parameters by accepting a dict of
+        values (e.g., as `**kwargs`), this method will pop tenko-specific
+        parameters and return a separate dict of those values. Following this,
+        the remaining items in `kwargs` can be considered to be specific
+        arguments to the subclass constructor.
+        """
+        tenkw = dict(
+            desc       = kwargs.pop('desc'      , None),
+            tag        = kwargs.pop('tag'       , None),
+            projname   = kwargs.pop('projname'  , None),
+            version    = kwargs.pop('version'   , None),
+            repodir    = kwargs.pop('repodir'   , None),
+            rootdir    = kwargs.pop('rootdir'   , None),
+            datadir    = kwargs.pop('datadir'   , None),
+            resdir     = kwargs.pop('resdir'    , None),
+            regdir     = kwargs.pop('regdir'    , None),
+            moduledir  = kwargs.pop('moduledir' , None),
+            h5file     = kwargs.pop('h5file'    , None),
+            ctxdir     = kwargs.pop('ctxdir'    , None),
+            admindir   = kwargs.pop('admindir'  , None),
+            tmpdir     = kwargs.pop('tmpdir'    , None),
+            rundir     = kwargs.pop('rundir'    , None),
+            profile    = kwargs.pop('profile'   , None),
+            logcolor   = kwargs.pop('logcolor'  , None),
+            figfmt     = kwargs.pop('figfmt'    , None),
+            staticfigs = kwargs.pop('staticfigs', None),
+            quiet      = kwargs.pop('quiet'     , None),
+        )
+        return tenkw
+
     def _arg(self, name, value, dflt=None, norm=False, path=False,
         optional=False):
         """
@@ -222,6 +255,7 @@ class AbstractBaseContext(object):
         self._lastcall = None
         self._running = False
         self._anybar = None
+        self._rand = None
 
         # Finished initializing!
         self._save()
@@ -487,6 +521,31 @@ class AbstractBaseContext(object):
         self._save()
 
         self.out(self._regdir, prefix='Registration')
+
+    # Random number seed methods
+
+    def set_random_seed(self, seed):
+        """
+        Set random seed on `_rand` RandomState instance attribute from string.
+        """
+        klass = self.__class__.__name__
+        seed = klass if seed is None else seed
+        self._rand_seed = sum(list(map(ord, seed)))
+        self._rand = np.random.RandomState(seed=self._rand_seed)
+
+        self.out(f'Instance seed: {self._rand_seed} [key: \'{seed}\']')
+
+    def set_default_random_seed(self, seed):
+        """
+        Set the default numpy random seed from a string seed or hash.
+        """
+        klass = self.__class__.__name__
+        seed = klass if seed is None else seed
+        self._rand_seed = sum(list(map(ord, seed)))
+        np.random.seed(self._rand_seed)
+        self._rand = np.random.random_sample
+
+        self.out(f'Default seed: {self._rand_seed} [key: \'{seed}\']')
 
     # Run directory path methods
 
