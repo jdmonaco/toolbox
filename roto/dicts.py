@@ -24,84 +24,85 @@ class AttrDict(object):
     """
 
     def __init__(self, adict=None, **kwargs):
-        if adict is None:
-            adict = dict()
-        self.__adict__ = adict
+        if adict is None: adict = dict()
+        AttrDict.__setattr__(self, '_adict', adict)
         self.update(kwargs)
 
-    def __getattr__(self, attr):
-        if attr not in self.__adict__:
-            raise AttributeError("'%s' attribute is not set" % attr)
-        return self.__adict__[attr]
+    def __getattr__(self, name):
+        if name == '_adict':
+            return object.__getattribute__(self, name)
+        if name not in self._adict:
+            raise AttributeError(f'attribute {name!r} is not set')
+        return self._adict[name]
 
-    def __setattr__(self, attr, value):
-        if attr == '__adict__':
-            object.__setattr__(self, attr, value)
+    def __setattr__(self, name, value):
+        if name == '_adict':
+            object.__setattr__(self, name, value)
             return
-        self.__adict__[attr] = value
-
-    def __setitem__(self, key, item):
-        if isinstance(key, str):
-            if not key.isidentifier():
-                raise ValueError('key is not a valid name: {}'.format(key))
+        if isinstance(name, str):
+            if not name.isidentifier():
+                raise ValueError(f'not a valid name ({name!r})')
         else:
-            raise ValueError('key is not a string: {}'.format(key))
-        self.__adict__[key] = item
+            raise ValueError(f'not a string {name!r}')
+        self._adict[name] = value
+
+    def __setitem__(self, name, item):
+        AttrDict.__setattr__(self, name, item)
 
     def update(self, *d, **kwargs):
         """
         Convenience method for dict-like update.
         """
         assert len(d) < 2, 'up to one positional argument allowed'
-        self.__adict__.update(*d, **kwargs)
+        self._adict.update(*d, **kwargs)
 
     def copy(self):
         """
         Convenience method for dict-like copy.
         """
-        return AttrDict(adict=self.__adict__.copy())
+        return AttrDict(adict=self._adict.copy())
 
-    def get(self, key, default=None):
+    def get(self, name, default=None):
         """
         Convenience method for dict-like get.
         """
-        return self.__adict__.get(key, default)
+        return self._adict.get(name, default)
 
-    def keys(self):
+    def names(self):
         """
-        Convenience method for dict-like keys.
+        Convenience method for dict-like names.
         """
-        return self.__adict__.keys()
+        return self._adict.names()
 
     def values(self):
         """
         Convenience method for dict-like values.
         """
-        return self.__adict__.values()
+        return self._adict.values()
 
     def items(self):
         """
         Convenience method for dict-like items.
         """
-        return self.__adict__.items()
+        return self._adict.items()
 
-    def __getitem__(self, key):
-        return self.__adict__[key]
+    def __getitem__(self, name):
+        return self._adict[name]
 
-    def __delitem__(self, key):
-        del self.__adict__[key]
+    def __delitem__(self, name):
+        del self._adict[name]
 
-    def __contains__(self, key):
-        return key in self.__adict__
+    def __contains__(self, name):
+        return name in self._adict
 
     def __bool__(self):
-        return bool(self.__adict__)
+        return bool(self._adict)
 
     def __len__(self):
-        return len(self.__adict__)
+        return len(self._adict)
 
     def __iter__(self):
-        return iter(self.__adict__)
+        return iter(self._adict)
 
     def __str__(self):
         klass = self.__class__.__name__
@@ -116,7 +117,7 @@ class AttrDict(object):
         return r + ')'
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.__adict__})'
+        return f'{self.__class__.__name__}({self._adict})'
 
 
 class Tree(dict):
