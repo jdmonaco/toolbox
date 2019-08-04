@@ -30,9 +30,9 @@ from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
 from roto.strings import snake2title, sluggify, naturalize
 from roto.dicts import AttrDict, merge_two_dicts
+from specify import is_specified
 
 from . import parallel
-from .repo import git_revision
 from .store import DataStore
 
 
@@ -43,7 +43,9 @@ ENVFILE = 'env.json'
 
 @decorator
 def step(_f_, *args, **kwargs):
-    """Declare a method as a compute step in this context."""
+    """
+    Declare a method as a compute step in this context.
+    """
     self = args[0]
     status = { 'OK': False }
     self._step_enter(_f_, args, kwargs)
@@ -259,7 +261,7 @@ class AbstractBaseContext(object):
 
         # Finished initializing!
         self._save()
-        self.printf(f'{self}', color=self._logcolor)
+        self.printdirs()
 
     def __str__(self):
         col_w = 13
@@ -281,6 +283,10 @@ class AbstractBaseContext(object):
         if env_keys:
             s += ['EnvKeys:'.ljust(col_w) + ', '.join(env_keys)]
         return '\n'.join(s) + '\n'
+
+    def printdirs(self):
+        self.out(super(AbstractBaseContext, self).__str__(),
+                    color=self._logcolor, hideprefix=True)
 
     # Namespace methods
 
@@ -762,7 +768,6 @@ class AbstractBaseContext(object):
 
         self._lastcall = info = {
             'time': time.localtime(),
-            'revision': git_revision(self._repodir),
             'subclass': self.__class__.__name__,
             'step': method.__name__,
             'tag': tag,
@@ -943,7 +948,6 @@ class AbstractBaseContext(object):
                     for k,v in call['kwvalues'].items()])
             logfd.write('Call: {}.{}({})\n'.format(call['subclass'],
                 call['step'], signature))
-            logfd.write('Revision: {}\n\n'.format(call['revision']))
             logfd.writelines(history)
 
     def current_step(self):
@@ -1246,15 +1250,15 @@ class AbstractBaseContext(object):
             na['time'] = time.localtime()
             return node
         na['time'] = time.mktime(call['time'])
-        for key in ('revision', 'subclass', 'step'):
+        for key in ('subclass', 'step'):
             na[key] = call[key]
         for name, value in call['params']:
             na[name] = value
         for kwd, value in call['kwvalues'].items():
             if callable(value):
                 continue
-            if hasattr(value, '_speckeys'):
-                value = value.as_dict()
+            if is_specified(value):
+                value = value.to_dict()
             na[kwd] = value
 
     # Figure methods

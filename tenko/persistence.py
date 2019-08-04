@@ -15,15 +15,26 @@ class AutomaticCache(object):
 
     Subclasses override the _compute() method to perform the computation.
 
-    Set `key_params` class attribute to a tuple of argument names to be used as
-    caching keys. Set `data_root` class attribute to the root group name under
-    which cached data should be saved. Set `cache_attrs` to a tuple of attribute
-    names that contain the data results to be persisted in the datafile cache.
-    Set `save_attrs` to other attribute names for, e.g., derived scalar
-    quantities that should persist through the cache's key-value store.
+    Class attributes
+    ----------------
 
-    The `seed` constructor keyword is provided as a convenience for setting the
-    seed of a numpy.RandomState object stored in the `rnd` instance attribute.
+    `key_params` : tuple of string instance attribute names
+        A tuple of argument names to be used as caching keys
+
+    `data_root` : string
+        The root group name under which cached data should be saved
+
+    `cache_attrs` : tuple of string instance attribute names
+        A tuple of attribute names that contain the data results to be
+        persisted in the datafile cache
+
+    `save_attrs` : tuple of string instance attribute names
+        Other attribute names for, e.g., derived scalar quantities that should
+        persist through the cache's key-value store
+
+    Note: The `seed` constructor keyword is provided as a convenience for
+    setting the seed of a numpy.RandomState object stored in the `rnd`
+    instance attribute.
     """
 
     data_root = 'cache'
