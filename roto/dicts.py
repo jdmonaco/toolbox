@@ -68,11 +68,11 @@ class AttrDict(object):
         """
         return self._adict.get(name, default)
 
-    def names(self):
+    def keys(self):
         """
-        Convenience method for dict-like names.
+        Convenience method for dict-like keys.
         """
-        return self._adict.names()
+        return self._adict.keys()
 
     def values(self):
         """
