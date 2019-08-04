@@ -14,6 +14,8 @@ from .notifier import Notifier
 
 DEBUG_MODE = False
 WINDOWS = (platform == 'win32')
+DEFAULT_PREFIX_COLOR = 'cyan'
+DEFAULT_MSG_COLOR = 'default'
 
 
 # Terminal color functions
@@ -91,8 +93,8 @@ class ConsolePrinter(object):
     A callable console printer with color, log files, and notifications.
     """
 
-    def __init__(self, prefix='[%Y-%m-%d %H:%M:%S] ', prefix_color='cyan',
-        message_color='default', quiet=False, outputfile=None, timestamp=True):
+    def __init__(self, prefix='[%Y-%m-%d %H:%M:%S] ', prefix_color=None,
+        message_color=None, quiet=False, outputfile=None, timestamp=True):
         """Create a colorful callable console printing object.
 
         Keyword arguments:
@@ -137,6 +139,7 @@ class ConsolePrinter(object):
 
     def set_prefix_color(self, color):
         """Set a new color for the prefix text."""
+        color = DEFAULT_PREFIX_COLOR if color is None else color
         if WINDOWS:
             self._pref = str
         else:
@@ -144,6 +147,7 @@ class ConsolePrinter(object):
 
     def set_message_color(self, color):
         """Set a new color for the message text."""
+        color = DEFAULT_MSG_COLOR if color is None else color
         if WINDOWS:
             self._msgf = str
         else:
@@ -329,7 +333,7 @@ class ConsolePrinter(object):
 
 # Convenience functions
 
-Logger = ConsolePrinter(prefix='log')
+Logger = ConsolePrinter(prefix='%Y-%m-%d+%H:%M:%S ')
 
 def log(*args, **kwargs):
     Logger(*args, **kwargs)

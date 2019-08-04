@@ -10,7 +10,9 @@ class NotARepoError(Exception):
 
 
 def git_revision(srcdir, short=False):
-    """Commit hash for the repository."""
+    """
+    Commit hash for the repository.
+    """
     if srcdir is None:
         return None
 
