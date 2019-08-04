@@ -30,7 +30,7 @@ from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
 from roto.strings import snake2title, sluggify, naturalize
 from roto.dicts import AttrDict, merge_two_dicts
-from specify import is_specified
+from specify import is_specified, is_param
 
 from . import parallel
 from .store import DataStore
@@ -54,7 +54,7 @@ def step(_f_, *args, **kwargs):
     return res
 
 
-class AbstractBaseContext(object):
+class AbstractBaseContext(TenkoObject):
 
     """
     Smart context for open and reproducible data analysis.
@@ -91,55 +91,6 @@ class AbstractBaseContext(object):
     set_figfmt -- change the image format for saving figures
     """
 
-    @classmethod
-    def factory(ABC, classname, projname, version, rootdir, datadir, repodir,
-        resdir, logcolor='pink'):
-        class _Class(ABC):
-            pass
-        _Class.__name__ = classname
-        _Class.__doc__ = ABC.__doc__
-        _Class.projname = projname
-        _Class.version = version
-        _Class.repodir = repodir
-        _Class.rootdir = rootdir
-        _Class.datadir = datadir
-        _Class.resdir = resdir
-        _Class.logcolor = logcolor
-        return _Class
-
-    @classmethod
-    def pop_tenko_args(kwargs):
-        """
-        For subclasses that process keyword parameters by accepting a dict of
-        values (e.g., as `**kwargs`), this method will pop tenko-specific
-        parameters and return a separate dict of those values. Following this,
-        the remaining items in `kwargs` can be considered to be specific
-        arguments to the subclass constructor.
-        """
-        tenkw = dict(
-            desc       = kwargs.pop('desc'      , None),
-            tag        = kwargs.pop('tag'       , None),
-            projname   = kwargs.pop('projname'  , None),
-            version    = kwargs.pop('version'   , None),
-            repodir    = kwargs.pop('repodir'   , None),
-            rootdir    = kwargs.pop('rootdir'   , None),
-            datadir    = kwargs.pop('datadir'   , None),
-            resdir     = kwargs.pop('resdir'    , None),
-            regdir     = kwargs.pop('regdir'    , None),
-            moduledir  = kwargs.pop('moduledir' , None),
-            h5file     = kwargs.pop('h5file'    , None),
-            ctxdir     = kwargs.pop('ctxdir'    , None),
-            admindir   = kwargs.pop('admindir'  , None),
-            tmpdir     = kwargs.pop('tmpdir'    , None),
-            rundir     = kwargs.pop('rundir'    , None),
-            profile    = kwargs.pop('profile'   , None),
-            logcolor   = kwargs.pop('logcolor'  , None),
-            figfmt     = kwargs.pop('figfmt'    , None),
-            staticfigs = kwargs.pop('staticfigs', None),
-            quiet      = kwargs.pop('quiet'     , None),
-        )
-        return tenkw
-
     def _arg(self, name, value, dflt=None, norm=False, path=False,
         optional=False):
         """
@@ -157,8 +108,11 @@ class AbstractBaseContext(object):
             if norm:
                 return sluggify(dflt)
             return dflt
-        if name is not None and hasattr(self.__class__, name):
-            cls_dflt = getattr(self.__class__, name)
+        if name is not None:
+            clsname = f'_{name}'
+            if not hasattr(self.__class__, clsname):
+                return None
+            cls_dflt = getattr(self.__class__, clsname)
             if cls_dflt is not None:
                 if path:
                     return os.path.abspath(cls_dflt)
@@ -173,8 +127,9 @@ class AbstractBaseContext(object):
         repodir=None, rootdir=None, datadir=None, resdir=None, regdir=None,
         moduledir=None, h5file=None, ctxdir=None, admindir=None, tmpdir=None,
         rundir=None, profile=None, logcolor=None, figfmt=None, staticfigs=None,
-        quiet=None):
-        """Set up the analysis context.
+        quiet=None, **kwargs):
+        """
+        Set up the analysis context.
 
         Keyword arguments:
         desc -- short phrase describing the run
@@ -188,7 +143,9 @@ class AbstractBaseContext(object):
         logcolor -- prefix color for shell log messages (default: purple)
         profile -- ipython profile to use for parallel client
         """
-        self._name = self._arg('__name__', None, norm=True)
+        super().__init__(**kwargs)
+
+        self._name = self._arg('__name__', self.__class__.__name__, norm=True)
         self._desc = self._arg('desc', desc, norm=True, optional=True)
         self._tag = self._arg('tag', tag, norm=True, optional=True)
         self._projname = self._arg('projname', projname, norm=True)
@@ -756,15 +713,19 @@ class AbstractBaseContext(object):
     def _step_enter(self, method, args, kwargs):
         spec = inspect.getargspec(method)
 
+        # TODO: inspect.getargspec is deprecated since python 3.0. This needs to
+        # be rewritten with inspect.getfullargspec or inspect.signature.
+
         argnames = spec.args[1:]
         argvalues = args[1:]
         params = list(zip(argnames, argvalues))
 
-        tag = None
-        for name, value in params:
-            if name == 'tag':
-                tag = value
-                break
+        tag = kwargs.pop('tag', None)
+        if tag is None:
+            for name, value in params:
+                if name == 'tag':
+                    tag = value
+                    break
 
         self._lastcall = info = {
             'time': time.localtime(),

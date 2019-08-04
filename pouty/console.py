@@ -340,7 +340,7 @@ def log(*args, **kwargs):
 
 def debug(*args, **kwargs):
     if DEBUG_MODE:
-        kwargs.update(debug=True)
+        kwargs.update(prefix=kwargs.get('prefix', 'debug'), debug=True)
         Logger(*args, **kwargs)
 
 def printf(s, c='green'):

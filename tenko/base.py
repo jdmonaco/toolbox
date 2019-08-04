@@ -14,7 +14,15 @@ class TenkoObject(object):
     __counts = {}
 
     def __init__(self, name=None, color=None, textcolor=None):
-        self.klass = self.__class__.__name__
+        super().__init__()
+
+        # Set the class name to an instance attribute
+        if hasattr(self.__class__, 'name'):
+            self.klass = self.__class__.name
+        else:
+            self.klass = self.__class__.__name__
+
+        # Set the instance name to a class-based count if unspecified
         if name is None:
             if self.klass in self.__counts:
                 self.__counts[self.klass] += 1
@@ -25,12 +33,14 @@ class TenkoObject(object):
         else:
             self.name = name
 
-        self.out = ConsolePrinter(prefix=self.name, prefix_color=color,
-                message_color=textcolor)
-        self.debug = self.out.debug
+        # Add a ConsolePrinter instance attribute for printing
+        if not hasattr(self, 'out'):
+            self.out = ConsolePrinter(prefix=self.name, prefix_color=color,
+                    message_color=textcolor)
 
-    def __str__(self):
-        return f'{self.name}<{self.klass}>'
+        # Add a debug function
+        if not hasattr(self, 'debug'):
+            self.debug = self.out.debug
 
     def __repr__(self):
         return f'{self.klass}(name={self.name!r})'
