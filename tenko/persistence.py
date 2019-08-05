@@ -2,14 +2,12 @@
 Automatic caching storage for expensive computed sigals.
 """
 
-from pouty import log
 from toolbox.numpy import random
 from roto.strings import naturalize
-from roto.datapath import attr_hash
+from roto.dicts import hashdict
 
 
 class AutomaticCache(object):
-
     """
     Auto-cache computed results with argument-based keys.
 
@@ -18,73 +16,81 @@ class AutomaticCache(object):
     Class attributes
     ----------------
 
-    `key_params` : tuple of string instance attribute names
+    `_key_params` : tuple of string instance attribute names
         A tuple of argument names to be used as caching keys
 
-    `data_root` : string
+    `_data_root` : string
         The root group name under which cached data should be saved
 
-    `cache_attrs` : tuple of string instance attribute names
+    `_cache_attrs` : tuple of instance attribute names
         A tuple of attribute names that contain the data results to be
         persisted in the datafile cache
 
-    `save_attrs` : tuple of string instance attribute names
+    `_save_attrs` : tuple of instance attribute names
         Other attribute names for, e.g., derived scalar quantities that should
         persist through the cache's key-value store
 
-    Note: The `seed` constructor keyword is provided as a convenience for
-    setting the seed of a numpy.RandomState object stored in the `rnd`
-    instance attribute.
+    Note: If `seed=<str>` is provided as a keyword argument, then it is used as
+    a seed key to set the state of a numpy.RandomState object which will be
+    assigned to the `rnd` instance attribute. If `seed` is not specified, then
+    the class name of the object will be used automatically instead.
     """
 
-    data_root = 'cache'
-    key_params = ('seed',)
-    cache_attrs = ()
-    save_attrs = ()
+    _data_root = 'cache'
+    _key_params = ('seed',)
+    _cache_attrs = ()
+    _save_attrs = ()
 
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, *, seed=None, cache_consume=True, **kwargs):
         """
-        All keyword-arguments become instance attributes used as cache keys.
+        Pull key parameter values out of kwargs to be used as cache keys.
         """
-        for arg, value in kwargs.items():
-            setattr(self, arg, value)
+        self._initialized = False
+        self.__key_values = {}
+        if 'seed' not in self._key_params:
+            self._key_params = tuple(self._key_params) + ('seed',)
 
-        for name in self.cache_attrs + self.save_attrs:
-            setattr(self, name, None)
+        # Set all key parameter values from kwargs with optional consumption
+        for key in self._key_params:
+            if key == 'seed':
+                continue
+            if cache_consume:
+                value = kwargs.pop(key, None)
+            else:
+                value = kwargs.get(key)
+            if value is not None:
+                self.__key_values[key] = value
+            else:
+                raise ValueError(f'missing key {key!r}')
 
-        for key in self.key_params:
-            if not hasattr(self, key):
-                log(key, prefix='MissingCacheKey', error=True)
-                raise ValueError(f'missing {key!r}')
-
+        # Set up the random number generator key
         seed = self.__class__.__name__ if seed is None else seed
-        self.seed = sum(map(ord, seed))
-        if 'seed' not in self.key_params:
-            self.key_params = tuple(self.key_params) + ('seed',)
-        self.attrs = {k:getattr(self, k) for k in self.key_params}
+        self.__key_values['seed'] = sum(map(ord, seed))
+        self.__attrs = {k:self.__key_values[k] for k in self._key_params}
 
         self._finish_init()
+        super().__init__(**kwargs)
+        self._initialized = True
 
     def _finish_init(self):
         """
-        Finish updating hash and cache paths after construction or loading.
+        Finish updating cache paths after construction or loading.
         """
-        self.rnd = random.RandomState(seed=self.seed)
-        self.hash = attr_hash(self, *self.key_params)
-        self.cachename = '{}_{}'.format(naturalize(self.__class__.__name__),
-                self.hash)
+        self.rnd = random.RandomState(seed=self.__key_values['seed'])
+        self.__cachename = '{}_{}'.format(naturalize(self.__class__.__name__),
+                hashdict(self.__key_values))
 
     def compute(self, context=None):
         """
         Perform the computation and cache the results in context's datafile.
         """
-        if context is not None and self._check_cache(context):
-            return self._load(context)
+        if context is not None and self.__check_cache(context):
+            return self.__load(context)
 
         self._compute()
 
         if context is not None:
-            self._cache(context)
+            self.__cache(context)
 
     def _compute(self):
         """
@@ -93,8 +99,8 @@ class AutomaticCache(object):
         The constructor arguments are available as instance attributes.
 
         The results of the computation should be set to the instance attributes
-        listed in the `cache_attrs` class attribute. Derived scalar quantities
-        should be set to the instance attributes listed in the `save_attrs`
+        listed in the `_cache_attrs` class attribute. Derived scalar quantities
+        should be set to the instance attributes listed in the `_save_attrs`
         class attribute.
 
         Use the `rnd` instance attribute for random number generation in order
@@ -102,68 +108,73 @@ class AutomaticCache(object):
         """
         raise NotImplementedError
 
-    def _cache(self, context):
+    def __cache(self, context):
         """
         Cache the computed data to the given context's datafile.
         """
-        for name in self.cache_attrs:
+        for name in self._cache_attrs:
             if getattr(self, name) is None:
                 raise RuntimeError('run compute() first')
 
-        # Add the scalar attributes to be cached
-        self.attrs.update({k:getattr(self, k) for k in self.save_attrs})
+        # Add the scalar attributes to be saved in the cache
+        self.__attrs.update(
+                   {k:self.__key_values[k] for k in self._save_attrs})
 
         # Create the cache data group with all attributes
-        grp = context.create_group(self.cachename, attrs=self.attrs,
-                root=self.data_root)
+        grp = context.create_group(self.__cachename, attrs=self.__attrs,
+                root=self._data_root)
 
-        for name in self.cache_attrs:
+        for name in self._cache_attrs:
             data = getattr(self, name)
-            context.save_array(data, name, attrs=self.attrs, root=grp)
+            context.save_array(data, name, attrs=self.__attrs, root=grp)
 
-    def _check_cache(self, context):
+    def __check_cache(self, context):
         """
         Check whether the key specification has been cached.
         """
-        return context.has_node(self.cachename, root=self.data_root)
+        return context.has_node(self.__cachename, root=self._data_root)
 
-    def _load(self, context, cache_path=None):
+    def __load(self, context, cache_path=None):
         """
         Load cached data keyed by the current specification.
         """
         if cache_path is None:
-            grp = context.get_node(self.cachename, root=self.data_root)
+            grp = context.get_node(self.__cachename, root=self._data_root)
         else:
             grp = context.get_node(root=cache_path)
 
-        for name in self.cache_attrs:
+        for name in self._cache_attrs:
             setattr(self, name, context.read_array(name, root=grp))
 
-        for name in self.save_attrs + self.key_params:
+        for key in self._key_params:
+            self.__key_values[key] = grp._v_attrs[key]
+            self.__attrs[name] = grp._v_attrs[key]
+
+        for name in self._save_attrs:
             setattr(self, name, grp._v_attrs[name])
-            self.attrs[name] = grp._v_attrs[name]
+            self.__attrs[name] = grp._v_attrs[name]
 
         self._finish_init()
         context.out(grp._v_pathname, prefix='AutoCacheLoad')
 
     @classmethod
-    def from_path(cls, context, cachepath):
+    def load_cache_from_path(cls, context, cachepath):
         """
         Load a cached object from an existing path ('/<root>/<name>_<hash>').
         """
         obj = cls()
-        obj._load(context, cachepath)
+        obj.__load(context, cachepath)
         return obj
 
     def clear_cache(self, context):
         """
         Remove the cached data for the current specification.
         """
-        if not self._check_cache(context):
+        if not self.__check_cache(context):
             return
 
         context.get_datafile(readonly=False)
-        cache = context.get_node(self.cachename, root=self.data_root)
+        cache = context.get_node(self.__cachename, root=self._data_root)
         cache._f_remove(recursive=True)
         context.close_datafile()
 
@@ -171,13 +182,17 @@ class AutomaticCache(object):
         """
         Completely delete all cached data that has been stored for this object
         type, regardless of key parameters or specification.
+
+        NOTE: This will wipe out the data root specified as `_data_root`, so
+        please make sure there is nothing else also saved in that subtree of
+        the data file that you would like to keep!
         """
         import tables as tb
         context.get_datafile(readonly=False)
         try:
-            root = context.get_node(root=self.data_root)
+            root = context.get_node(root=self._data_root)
         except tb.NoSuchNodeError:
-            context.out('Could not find data root (/{})', self.data_root,
+            context.out('Could not find data root (/{})', self._data_root,
                     prefix='CacheDelete', error=True)
         else:
             root._f_remove(recursive=True)

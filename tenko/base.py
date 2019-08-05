@@ -13,7 +13,8 @@ class TenkoObject(object):
 
     __counts = {}
 
-    def __init__(self, name=None, color=None, textcolor=None):
+    def __init__(self, name=None, color=None, textcolor=None, **kwargs):
+        self._initialized = False
         super().__init__()
 
         # Set the class name to an instance attribute
@@ -42,8 +43,21 @@ class TenkoObject(object):
         if not hasattr(self, 'debug'):
             self.debug = self.out.debug
 
+        # Warn about unconsumed kwargs
+        for key, value in kwargs.items():
+            self.out(f'{key} = {value!r}', prefix='UnconsumedKwargs',
+                     warning=True)
+
+        self._initialized = True
+
     def __repr__(self):
-        return f'{self.klass}(name={self.name!r})'
+        if hasattr(self, '_initialized') and self._initialized:
+            return f'{self.klass}(name={self.name!r})'
+        if hasattr(self, '__qualname__'):
+            return self.__qualname__
+        if hasattr(self, '__module__') and hasattr(self, '__name__'):
+            return f'{self.__module__}{self.__class__.__name__}'
+        return object.__repr__(self)
 
     def __format__(self, fmtspec):
         return self.name.__format__(fmtspec)

@@ -33,6 +33,7 @@ from roto.dicts import AttrDict, merge_two_dicts
 from specify import is_specified, is_param
 
 from . import parallel
+from .base import TenkoObject
 from .store import DataStore
 
 
@@ -151,10 +152,15 @@ class AbstractBaseContext(TenkoObject):
         self._projname = self._arg('projname', projname, norm=True)
         self._version = self._arg('version', version, norm=True)
         self._profile = self._arg('profile', profile, dflt=self._projname)
-        self._logcolor = self._arg('logcolor', logcolor, norm=True)
         self._figfmt = self._arg('figfmt', figfmt, dflt='mpl')
         self._staticfigs = self._arg('staticfigs', staticfigs, dflt=True)
+
+        # Create the console output object first for super() chaining during
+        # context subclass initialization
+        self._logcolor = self._arg('logcolor', logcolor, norm=True)
         self._quiet = self._arg('quiet', quiet, dflt=True)
+        self._out = ConsolePrinter(prefix=self.__class__.__name__,
+                quiet=self._quiet, prefix_color=self._logcolor)
 
         self._repodir = self._arg('repodir', repodir, path=True)
         self._rootdir = self._arg('rootdir', rootdir, dflt=os.path.join(
@@ -188,9 +194,6 @@ class AbstractBaseContext(TenkoObject):
                 self.load(self, load_instance=True)
                 loaded = True
 
-        # Create the console output object
-        self._out = ConsolePrinter(prefix=self.__class__.__name__,
-                quiet=self._quiet, prefix_color=self._logcolor)
         if loaded: self.hline()
 
         # Create the data store object for the HDF data file
