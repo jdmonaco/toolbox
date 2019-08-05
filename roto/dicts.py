@@ -4,6 +4,8 @@ Functions and ontologies on dictionaries.
 
 import hashlib
 
+from pouty.console import snow as hilite, seafoam as midlite, ochre as lolite
+
 
 def merge_two_dicts(a, b):
     """Merge two dicts into one dict, with the second overriding."""
@@ -26,6 +28,21 @@ def hashdict(d):
     m = hashlib.shake_128()
     [m.update(bytes(f'{k}={d[k]}', 'utf-8')) for k in keys]
     return m.hexdigest(10)
+
+def pprint(d, indent=4, name='dict'):
+    """
+    Pretty print a dict (or mapping).
+    """
+    prefix = ' '*indent
+    r = midlite(f'{name}(')
+    if len(d):
+        r += '\n'
+    for k, v in d.items():
+        l = hilite(f'{k}') + midlite(' = ') + lolite(f'{v!r},')
+        lines = l.split('\n')
+        for line in lines:
+            r += prefix + line + '\n'
+    return r + midlite(')')
 
 
 class AttrDict(object):
@@ -116,16 +133,7 @@ class AttrDict(object):
         return iter(self._adict)
 
     def __str__(self):
-        klass = self.__class__.__name__
-        indent = ' '*4
-        r = f'{klass}('
-        if len(self):
-            r += '\n'
-        for k, v in self.items():
-            lines = f'{k} = {repr(v)},'.split('\n')
-            for line in lines:
-                r += indent + line + '\n'
-        return r + ')'
+        return pprint(self, name=self.__class__.__name__)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self._adict})'
