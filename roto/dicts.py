@@ -2,6 +2,8 @@
 Functions and ontologies on dictionaries.
 """
 
+import hashlib
+
 
 def merge_two_dicts(a, b):
     """Merge two dicts into one dict, with the second overriding."""
@@ -15,6 +17,15 @@ def merge_dicts(*dicts):
     for newdict in dicts:
         d.update(newdict)
     return d
+
+def hashdict(d):
+    """
+    An key-value-based deterministic hash of a dict (or mapping).
+    """
+    keys = tuple(sorted(d.keys()))
+    m = hashlib.shake_128()
+    [m.update(bytes(f'{k}={d[k]}', 'utf-8')) for k in keys]
+    return m.hexdigest(10)
 
 
 class AttrDict(object):
