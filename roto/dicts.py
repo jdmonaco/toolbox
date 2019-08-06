@@ -35,14 +35,15 @@ def pprint(d, indent=4, name='dict'):
     """
     prefix = ' '*indent
     r = midlite(f'{name}(')
+    comma = midlite(',')
     if len(d):
         r += '\n'
     for k, v in d.items():
-        l = hilite(f'{k}') + midlite(' = ') + lolite(f'{v!r},')
+        l = hilite(f'{k}') + midlite(' = ') + lolite(f'{v!r}') + comma
         lines = l.split('\n')
         for line in lines:
             r += prefix + line + '\n'
-    return r + midlite(')')
+    return r + midlite(')') + '\n'
 
 
 class AttrDict(object):
