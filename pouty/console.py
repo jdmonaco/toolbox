@@ -267,7 +267,7 @@ class ConsolePrinter(object):
         print(pref(pre) + msgf(firstline), file=console)
         for line in lines[1:]:
             line = line.rstrip()
-            if line[0] == '/' and os.path.exists(line):
+            if line and line[0] == '/' and os.path.exists(line):
                 line = tilde(line)
             print(' ' * pre_len + msgf(line), file=console)
 
@@ -283,6 +283,10 @@ class ConsolePrinter(object):
 
             # Strip any escape codes (e.g., for color) out of the msg
             msg = re.sub('(\x1b\[\d;\d\dm)|(\x1b\[0m)', '', msg)
+
+            # Apply path truncation
+            if msg and msg[0] == '/' and os.path.exists(msg):
+                msg = tilde(msg)
 
             self._fd.write(msg + '\n')
             self._fd.flush()
@@ -320,12 +324,14 @@ class ConsolePrinter(object):
     def printf(self, s, color=None):
         """Raw flushed color output to the console."""
         colf = self._pref if color is None else COL_FUNC[color]
+        s = str(s)
 
         if WINDOWS: print(s, end='', flush=True)
         else:       print(colf(s), end='', flush=True)
 
         if self._isopen():
-            self._fd.write(s)
+            s_nocolor = re.sub('(\x1b\[\d;\d\dm)|(\x1b\[0m)', '', s)
+            self._fd.write(s_nocolor)
             self._fd.flush()
 
         self._hanging = not s.endswith('\n')

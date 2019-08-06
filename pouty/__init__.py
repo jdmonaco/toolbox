@@ -16,6 +16,10 @@ from .anybar import AnyBar
 __version__ = '0.1.2'
 
 
-def debug_mode(active):
-    """Activate or deactivate debug-mode logging."""
+def debug_mode(active=None):
+    """
+    Activate/deactivate or simply query debug-mode logging.
+    """
+    if active is None:
+        return console.DEBUG_MODE
     console.DEBUG_MODE = bool(active)

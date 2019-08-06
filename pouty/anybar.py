@@ -8,6 +8,7 @@ import socket
 import subprocess
 
 from .shell import Shell
+from . import debug
 
 
 BASE_PORT = 1738
@@ -57,7 +58,7 @@ class AnyBar(object):
         if not cls._instances: return
         abar = cls._instances[-1]
         if abar.color not in (color1, color2):
-            abar.set_anybar_color(color1)
+            abar.set_color(color1)
             return
         abar.set_color({color1:color2, color2:color1}[abar.color])
 
@@ -73,8 +74,7 @@ class AnyBar(object):
                     self.quit()
                 else:
                     already = True
-                    print(f'AnyBar: already running ({self.pid})',
-                            file=sys.stderr)
+                    debug(f'already running ({self.pid})', prefix='AnyBar')
             else:
                 self.pid = self.port = None
 
@@ -89,8 +89,7 @@ class AnyBar(object):
                 if self.pid is not None:
                     self.__class__._instances.append(self)
             else:
-                print(f'AnyBar: unable to set port ({self.port})',
-                        file=sys.stderr)
+                debug(f'unable to set port ({self.port})', prefix='AnyBar')
 
     def quit(self):
         """
