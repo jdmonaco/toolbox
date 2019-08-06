@@ -42,6 +42,10 @@ INITFILE = 'init.json'
 ENVFILE = 'env.json'
 
 
+class Context(AttrDict):
+    pass
+
+
 @decorator
 def step(_f_, *args, **kwargs):
     """
@@ -124,11 +128,12 @@ class AbstractBaseContext(TenkoObject):
             print(f'Warning: missing value for \'{name}\'', file=sys.stderr)
         return None
 
-    def __init__(self, desc=None, tag=None, projname=None, version=None,
-        repodir=None, rootdir=None, datadir=None, resdir=None, regdir=None,
-        moduledir=None, h5file=None, ctxdir=None, admindir=None, tmpdir=None,
-        rundir=None, profile=None, logcolor=None, figfmt=None, staticfigs=None,
-        quiet=None, **kwargs):
+    def __init__(self , desc=None     , tag=None       , projname=None   ,
+        version=None  , repodir=None  , rootdir=None   , datadir=None    ,
+        resdir=None   , regdir=None   , moduledir=None , h5file=None     ,
+        ctxdir=None   , admindir=None , tmpdir=None    , rundir=None     ,
+        profile=None  , logcolor=None , figfmt=None    , staticfigs=None ,
+        quiet=None    , **kwargs):
         """
         Set up the analysis context.
 
@@ -203,10 +208,9 @@ class AbstractBaseContext(TenkoObject):
         # Set the ipyparallel profile
         self.set_parallel_profile(self._profile)
 
-        # Load the persistent namespace with attribute access
-        self._env = AttrDict()
-        self._load_env()
-        self.c = AttrDict(self._env)
+        # Load the persistent namespace context with key/attribute access
+        self.c = Context()
+        self._load_context()
 
         # Context state variables
         self._figures = {}
@@ -276,31 +280,6 @@ class AbstractBaseContext(TenkoObject):
         state = '.'.join(self.__class__.__module__.split('.')[:-1] + ['state'])
         import_module(state).reset_state()
 
-    # Mapping methods
-
-    def __setitem__(self, key, item):
-        if isinstance(key, str):
-            if not key.isidentifier():
-                raise ValueError('key is not a valid name: {}'.format(key))
-        else:
-            raise ValueError('key is not a string: {}'.format(key))
-        self._env[key] = item
-
-    def __getitem__(self, key):
-        return self._env[key]
-
-    def __delitem__(self, key):
-        del self._env[key]
-
-    def __contains__(self, key):
-        return key in self._env
-
-    def __len__(self):
-        return len(self._env)
-
-    def __iter__(self):
-        return iter(self._env)
-
     # Key-value persistence
 
     def get_json(self, *path, return_path=True):
@@ -364,19 +343,19 @@ class AbstractBaseContext(TenkoObject):
                        separators=(', ', ': '))
         return fpath
 
-    def _save_env(self):
+    def _save_context(self):
         """
         Save the persistent key-value store.
         """
-        self.write_json(self._env, ENVFILE, base='admin')
+        self.write_json(self.c, ENVFILE, base='admin')
 
-    def _load_env(self):
+    def _load_context(self):
         """
         Load the persistent key-value store if it exists.
         """
         sfn = self.path(ENVFILE, base='admin')
         if not os.path.isfile(sfn): return
-        self._env.update(self.read_json(sfn))
+        self.c.update(self.read_json(sfn))
 
     # Load/save methods
 
@@ -775,8 +754,8 @@ class AbstractBaseContext(TenkoObject):
         # Start the AnyBar widget if available
         self.launch_anybar('question')
 
-        # Save any pre-run changes to the key-value store
-        self._save_env()
+        # Save any pre-run changes to the key-value context
+        self._save_context()
 
         self.open_logfile(info['step'].replace('_', '-'), timestamps=False)
         self.hline()
@@ -848,7 +827,7 @@ class AbstractBaseContext(TenkoObject):
         tag = self._lastcall['tag']
 
         if status['OK']:
-            self._save_env()
+            self._save_context()
             self._save_call_log()
 
             # Final output (run) directory is based on method name & tag
@@ -1406,7 +1385,7 @@ class AbstractBaseContext(TenkoObject):
         """
         if movie_path is not None:
             movp = movie_path
-        elif 'movie_file' in self:
+        elif 'movie_file' in self.c:
             movp = self.path(self.c.movie_file)
         else:
             self.out('Please specify a path to the movie file', error=True)
