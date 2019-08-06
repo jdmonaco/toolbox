@@ -117,8 +117,7 @@ class AutomaticCache(object):
                 raise RuntimeError('run compute() first')
 
         # Add the scalar attributes to be saved in the cache
-        self.__attrs.update(
-                   {k:self.__key_values[k] for k in self._save_attrs})
+        self.__attrs.update({k:getattr(self, k) for k in self._save_attrs})
 
         # Create the cache data group with all attributes
         grp = context.create_group(self.__cachename, attrs=self.__attrs,

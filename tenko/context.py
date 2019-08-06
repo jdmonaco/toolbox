@@ -245,8 +245,7 @@ class AbstractBaseContext(TenkoObject):
         return '\n'.join(s) + '\n'
 
     def printdirs(self):
-        self.out(super(AbstractBaseContext, self).__str__(),
-                    color=self._logcolor, hideprefix=True)
+        self.printf(AbstractBaseContext.__str__(self), color=self._logcolor)
 
     # Namespace methods
 
@@ -813,11 +812,9 @@ class AbstractBaseContext(TenkoObject):
         self._running = True
         self.set_anybar_color('orange')  # to indicate running
 
-        # Save figure and interactive state to go non-interactive during call
+        # Save current figure labels and turn off interactive plotting
         prevfigset = frozenset(self._figures.keys())
-        was_interactive = plt.isinteractive()
-        if was_interactive:
-            plt.ioff()
+        plt.ioff()
 
         try:
             result = method(*args, **kwargs)
@@ -833,14 +830,13 @@ class AbstractBaseContext(TenkoObject):
         finally:
             self.close_datafile()
 
-            # Show any new figures and restore interactive state
+            # Show any new figures and restore interactive plotting
             curfigset = frozenset(self._figures.keys())
-            if was_interactive:
-                plt.ion()
-                if prevfigset.symmetric_difference(curfigset):
-                    plt.show()
-                if len(plt.get_figlabels()):
-                    plt.draw()
+            plt.ion()
+            if prevfigset.symmetric_difference(curfigset):
+                plt.show()
+            if len(plt.get_figlabels()):
+                plt.draw()
 
             # Restore matplotlib configuration if it was changed locally
             mpl.rc_file_defaults()

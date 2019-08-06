@@ -15,7 +15,6 @@ class TenkoObject(object):
 
     def __init__(self, name=None, color=None, textcolor=None, **kwargs):
         self._initialized = False
-        super().__init__()
 
         # Set the class name to an instance attribute
         if hasattr(self.__class__, 'name'):
@@ -51,8 +50,6 @@ class TenkoObject(object):
         self._initialized = True
 
     def __repr__(self):
-        if hasattr(self, '_initialized') and self._initialized:
-            return f'{self.klass}(name={self.name!r})'
         if hasattr(self, '__qualname__'):
             return self.__qualname__
         if hasattr(self, '__module__') and hasattr(self, '__name__'):
