@@ -93,49 +93,75 @@ class ConsolePrinter(object):
     A callable console printer with color, log files, and notifications.
     """
 
+    _outputfile = None
+    _fd = None
+    _timestamp = False
+
     def __init__(self, prefix='[%Y-%m-%d %H:%M:%S] ', prefix_color=None,
-        message_color=None, quiet=False, outputfile=None, timestamp=True):
+        message_color=None):
         """Create a colorful callable console printing object.
 
         Keyword arguments:
-        prefix -- set the default prefix string for all messages
-        prefix_color, message_color -- color names for prefix and message text
-        quiet -- suppress messages about opening and closing log files
-        outputfile -- optional file name where messages should be echo'd
-        timestamp -- print timestamps in `outputfile` if specified
+        prefix -- default prefix string for console output
+        prefix_color -- color name for prefix text
+        message_color -- color name for message text
         """
         self._prefix = prefix
-        self._quiet = quiet
-
         self.set_prefix_color(prefix_color)
         self.set_message_color(message_color)
-
-        self._outputfile = self._fd = None
-        self.set_outputfile(outputfile)
-        self.set_timestamps(timestamp)
-
         self._notifier = None
         self._hanging = False
 
-    def _isopen(self):
-        return self._fd is not None and not self._fd.closed
+    @classmethod
+    def _isopen(cls):
+        return cls._fd is not None and not cls._fd.closed
 
-    def openfile(self, newfile=False):
+    @classmethod
+    def openfile(cls, newfile=False):
         """Open the currently set output file."""
-        if self._outputfile is None:
-            self('No output file has been set', error=True)
+        if cls._outputfile is None:
+            print('No output file has been set', file=sys.stderr)
             return
-        if self._isopen():
+        if cls._isopen():
             return
         mode = 'w' if newfile else 'a'
         try:
-            self._fd = open(self._outputfile, mode, 1)
+            cls._fd = open(cls._outputfile, mode, 1)
         except IOError:
-            self._outputfile = self._fd = None
-            self('IOError: Could not open: %s' % self._outputfile, error=True)
-        else:
-            if not self._quiet:
-                self(self._outputfile, prefix='OpenedFile')
+            cls._outputfile = cls._fd = None
+            print('IOError: Could not open {cls._outputfile!r}',
+                  file=sys.stderr)
+
+    @classmethod
+    def closefile(cls):
+        """Close the current output file."""
+        if not cls._isopen():
+            cls._fd = None
+            return
+        cls._fd.close()
+        cls._fd = None
+
+    @classmethod
+    def removefile(cls):
+        """Delete the current output file."""
+        cls.closefile()
+        os.unlink(cls._outputfile)
+
+    @classmethod
+    def set_outputfile(cls, fpath, newfile=False):
+        """Set the path to a new output file for logging messages."""
+        if fpath == cls._outputfile and cls._isopen():
+            return
+        cls.closefile()
+        cls._outputfile = fpath
+        cls._fd = None
+        if cls._outputfile is not None:
+            cls.openfile(newfile=newfile)
+
+    @classmethod
+    def set_timestamps(cls, active):
+        """Set timestamping on/off for log files."""
+        cls._timestamp = bool(active)
 
     def set_prefix_color(self, color):
         """Set a new color for the prefix text."""
@@ -152,36 +178,6 @@ class ConsolePrinter(object):
             self._msgf = str
         else:
             self._msgf = COL_FUNC[color]
-
-    def set_outputfile(self, fpath, newfile=False):
-        """Set the path to a new output file for logging messages."""
-        if fpath == self._outputfile and self._isopen():
-            return
-        self.closefile()
-        self._outputfile = fpath
-        self._fd = None
-        if self._outputfile is not None:
-            self.openfile(newfile=newfile)
-
-    def set_timestamps(self, active):
-        """Set timestamping on/off for log files."""
-        self._timestamp = bool(active)
-
-    def closefile(self):
-        """Close the current output file."""
-        if not self._isopen():
-            self._fd = None
-            return
-        self._fd.close()
-        self._fd = None
-        if not self._quiet:
-            self(self._outputfile, prefix='ClosedFile')
-
-    def removefile(self):
-        """Delete the current output file."""
-        self.closefile()
-        os.unlink(self._outputfile)
-        self('Deleted: %s' % self._outputfile)
 
     def __call__(self, *msg, **fmt):
         """Display a message with color prefix and multi-line indenting.
@@ -311,7 +307,7 @@ class ConsolePrinter(object):
         """Draw a Unicode box glyph to the console."""
         self.printf('\u25a1\u25a0'[filled], color=color)
 
-    def hline(self, ch='—', length=80, color=None):
+    def hline(self, ch='—', length=80, color='snow'):
         """Print a horizontal rule line."""
         if self._hanging: self.newline()
         self.printf(ch * length, color=color)
