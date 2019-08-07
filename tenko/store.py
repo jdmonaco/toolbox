@@ -12,14 +12,10 @@ import subprocess
 
 import tables as tb
 
-import pouty
+from roto.paths import tilde
 
 from .handles import TABLES_FILES
-
-
-HOME = os.getenv('HOME')
-if sys.platform == 'win32':
-    HOME = os.getenv("USERPROFILE")
+from .base import TenkoObject
 
 
 def close_all():
@@ -30,68 +26,58 @@ def close_all():
     tb.file._open_files.close_all()
 
 
-class DataStore(object):
+class DataStore(TenkoObject):
 
     """
     Manage access to a data storage file (HDF).
     """
 
-    def __init__(self, name='data', where=None, logfunc=None, quiet=False):
-        self._name = name
-        self._parent = where is None and os.getcwd() or os.path.abspath(where)
-        self._backup_path = os.path.join(self._parent, 'backups')
-        self._quiet = quiet
+    def __init__(self, name='data', where=None):
+        super().__init__(name=name, color='ochre')
+        self.parent = where is None and os.getcwd() or os.path.abspath(where)
+        self.backup_path = os.path.join(self.parent, 'backups')
 
-        self.out = logfunc and logfunc or pouty.log
-
-        self._file = None
-        self._path = os.path.join(self._parent, '%s.h5' % self._name)
+        self.h5file = None
+        self.h5path = os.path.join(self.parent, f'{self.name}.h5')
 
     def _check_cache(self):
         try:
-            self._file = TABLES_FILES[self._path]
+            self.h5file = TABLES_FILES[self.h5path]
         except KeyError:
             pass
         else:
-            if not self._file.isopen:
+            if not self.h5file.isopen:
                 try:
-                    del TABLES_FILES[self._path]
+                    del TABLES_FILES[self.h5path]
                 except KeyError:
                     pass
-                self._file = None
-
-    @staticmethod
-    def _truncate(p):
-        if p.startswith(HOME):
-            return f'~{p[len(HOME):]}'
-        return p
+                self.h5file = None
 
     def __str__(self):
         self._check_cache()
         status = ''
-        if self._file and self._file.isopen:
+        if self.h5file and self.h5file.isopen:
             mode = 'ro'
-            if self._file.mode in 'aw':
+            if self.h5file.mode in 'aw':
                 mode = 'w'
             status = ' (%s)' % mode
-        return '%s%s' % (self._truncate(self._path), status)
+        return '%s%s' % (tilde(self.h5path), status)
 
     def __repr__(self):
         self._check_cache()
         status = 'Unopened'
-        if self._file:
-            if self._file.isopen:
+        if self.h5file:
+            if self.h5file.isopen:
                 mode = 'Readonly'
-                if self._file.mode in 'aw':
+                if self.h5file.mode in 'aw':
                     mode = 'Writeable'
                 status = 'Open: %s' % mode
             else:
                 status = 'Closed'
-        return "<DataStoreFile(%s) at '%s'>" % (status, self._truncate(
-            self._path))
+        return "<DataStoreFile(%s) at '%s'>" % (status, tilde(self.h5path))
 
     def path(self):
-        return self._path
+        return self.h5path
 
     def __enter__(self):
         """Open file within a context statement."""
@@ -108,88 +94,81 @@ class DataStore(object):
         readonly -- set with boolean to force access mode
         """
         self._check_cache()
-        if self._file and self._file.isopen:
+        if self.h5file and self.h5file.isopen:
             if self._check_mode(readonly):
-                return self._file
+                return self.h5file
             self.close()
 
         if readonly is None:
-            readonly = os.path.isfile(self._path)
+            readonly = os.path.isfile(self.h5path)
 
         self._open_file(readonly)
-        return self._file
+        return self.h5file
 
     def _check_mode(self, readonly):
         if readonly is None:
             return True
-        return ((self._file.mode == 'r' and readonly) or
-                (self._file.mode == 'a' and not readonly))
+        return ((self.h5file.mode == 'r' and readonly) or
+                (self.h5file.mode == 'a' and not readonly))
 
     def _open_file(self, readonly):
         """Open a new file handle to the data file."""
-        if not os.path.isdir(self._parent):
-            os.makedirs(self._parent)
+        if not os.path.isdir(self.parent):
+            os.makedirs(self.parent)
 
         mode = readonly and 'r' or 'a'
         try:
-            self._file = tb.open_file(self._path, mode=mode)
+            self.h5file = tb.open_file(self.h5path, mode=mode)
         except IOError:
-            self.out('Error opening data store file', error=True)
+            self.out(self.h5path, prefix='DataFileIOError', error=True)
         else:
-            TABLES_FILES[self._path] = self._file
-            if not self._quiet:
-                self.out('Opened: {}', self)
+            TABLES_FILES[self.h5path] = self.h5file
 
     def flush(self):
         """Flush the data file."""
         self._check_cache()
-        if self._file and self._file.isopen:
-            self._file.flush()
+        if self.h5file and self.h5file.isopen:
+            self.h5file.flush()
 
     def close(self):
         """Close the data file if it's open."""
         self._check_cache()
-        if not (self._file and self._file.isopen):
+        if not (self.h5file and self.h5file.isopen):
             return
 
         try:
-            self._file.close()
+            self.h5file.close()
         except IOError:
-            self.out('Error closing data store file, try again', error=True)
+            self.out(self.h5path, prefix='DataFileIOError', error=True)
         else:
             try:
-                del TABLES_FILES[self._path]
+                del TABLES_FILES[self.h5path]
             except KeyError:
                 pass
-            if not self._quiet:
-                self.out('Closed: {}', self)
 
     def backup(self, tag=None):
         """Move the data file to a backup folder and create a clean copy
         in its place.
         """
-        if not os.path.exists(self._path):
-            self.out('Backup Error: File does not exist: {}', self._truncate(
-                self._path), error=True)
+        if not os.path.exists(self.h5path):
+            self.out(self.h5path, prefix='MissingDataFile', error=True)
             return
 
         label = tag is None and time.strftime('%Y-%m-%d-%H-%M') or tag
-        filename = '%s-%s.h5' % (self._name, label)
-        dest = os.path.join(self._backup_path, filename)
-        if not os.path.isdir(self._backup_path):
-            os.makedirs(self._backup_path)
+        filename = '%s-%s.h5' % (self.name, label)
+        dest = os.path.join(self.backup_path, filename)
+        if not os.path.isdir(self.backup_path):
+            os.makedirs(self.backup_path)
 
         self.close()
 
-        if subprocess.call(['mv', self._path, dest]) != 0:
-            self.out('Backup Error: Failed to move {}', self._truncate(
-                self._path), error=True)
+        if subprocess.call(['mv', self.h5path, dest]) != 0:
+            self.out(self.h5path, prefix='BackupMoveFailed', error=True)
             return
 
         warnings.filterwarnings('ignore', category=tb.NaturalNameWarning)
 
         with tb.open_file(dest, mode='r') as df:
-            df.copy_file(self._path)
+            df.copy_file(self.h5path)
 
-        if not self._quiet:
-            self.out('Backup: {}', self._truncate(dest))
+        self.out(dest, prefix='DatafileBackedUp')

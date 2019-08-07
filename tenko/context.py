@@ -133,7 +133,7 @@ class AbstractBaseContext(TenkoObject):
         resdir=None   , regdir=None   , moduledir=None , h5file=None     ,
         ctxdir=None   , admindir=None , tmpdir=None    , rundir=None     ,
         profile=None  , logcolor=None , figfmt=None    , staticfigs=None ,
-        quiet=None    , **kwargs):
+        **kwargs):
         """
         Set up the analysis context.
 
@@ -163,9 +163,8 @@ class AbstractBaseContext(TenkoObject):
         # Create the console output object first for super() chaining during
         # context subclass initialization
         self._logcolor = self._arg('logcolor', logcolor, norm=True)
-        self._quiet = self._arg('quiet', quiet, dflt=True)
         self._out = ConsolePrinter(prefix=self.__class__.__name__,
-                quiet=self._quiet, prefix_color=self._logcolor)
+                prefix_color=self._logcolor)
 
         self._repodir = self._arg('repodir', repodir, path=True)
         self._rootdir = self._arg('rootdir', rootdir, dflt=os.path.join(
@@ -420,7 +419,6 @@ class AbstractBaseContext(TenkoObject):
             'logcolor'   : self._logcolor,
             'figfmt'     : self._figfmt,
             'staticfigs' : self._staticfigs,
-            'quiet'      : self._quiet,
         }, INITFILE, base='admin')
 
     def register(self):
@@ -669,21 +667,17 @@ class AbstractBaseContext(TenkoObject):
 
     # Logging methods
 
-    def open_logfile(self, stem=None, newfile=False, timestamps=True):
+    def open_logfile(self, stem=None, newfile=False, timestamps=False):
         """Start a new log file with optional timestamping."""
         if stem is None:
             if self._running:
                 stem = self._lastcall['step']
             else:
                 stem = self._name
-        fn = self.path('%s.log' % stem)
-        self.use_timestamps(timestamps)
+        fn = self.path(f'{stem}.log')
+        self._out.set_timestamps(timestamps)
         self._out.set_outputfile(fn, newfile=newfile)
         return fn
-
-    def use_timestamps(self, active):
-        """Timestamp messages recorded in log files."""
-        self._out.set_timestamps(active)
 
     def close_logfile(self):
         """Close the current log file."""
@@ -757,7 +751,7 @@ class AbstractBaseContext(TenkoObject):
         # Save any pre-run changes to the key-value context
         self._save_context()
 
-        self.open_logfile(info['step'].replace('_', '-'), timestamps=False)
+        self.open_logfile(info['step'].replace('_', '-'))
         self.hline()
         self.out('Running step: {}', info['step'], popup=True)
         if params:
@@ -927,8 +921,7 @@ class AbstractBaseContext(TenkoObject):
 
         dpath = os.path.abspath(newpath)
         parent, fn = os.path.split(os.path.splitext(dpath)[0])
-        self._datafile = DataStore(name=fn, where=parent, logfunc=self._out,
-                quiet=self._quiet)
+        self._datafile = DataStore(name=fn, where=parent)
         self._h5file = self._datafile.path()
 
     def get_datafile(self, readonly=None):
