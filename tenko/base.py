@@ -16,6 +16,10 @@ class TenkoObject(object):
     def __init__(self, name=None, color=None, textcolor=None, **kwargs):
         self._initialized = False
 
+        # Set color/textcolor defaults for TenkoObject instances
+        color = 'green' if color is None else color
+        textcolor = 'default' if textcolor is None else textcolor
+
         # Set the class name to an instance attribute
         if hasattr(self.__class__, 'name'):
             self.klass = self.__class__.name
@@ -29,7 +33,10 @@ class TenkoObject(object):
             else:
                 self.__counts[self.klass] = 0
             c = self.__counts[self.klass]
-            self.name = f'{self.klass}_{c:03d}'
+            if c == 0:
+                self.name = self.klass
+            else:
+                self.name = f'{self.klass}_{c:03d}'
         else:
             self.name = name
 

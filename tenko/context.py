@@ -149,7 +149,8 @@ class AbstractBaseContext(TenkoObject):
         logcolor -- prefix color for shell log messages (default: purple)
         profile -- ipython profile to use for parallel client
         """
-        super().__init__(**kwargs)
+        super().__init__(color=self._arg('logcolor', logcolor, norm=True),
+                **kwargs)
 
         self._name = self._arg('__name__', self.__class__.__name__, norm=True)
         self._desc = self._arg('desc', desc, norm=True, optional=True)
@@ -159,12 +160,6 @@ class AbstractBaseContext(TenkoObject):
         self._profile = self._arg('profile', profile, dflt=self._projname)
         self._figfmt = self._arg('figfmt', figfmt, dflt='mpl')
         self._staticfigs = self._arg('staticfigs', staticfigs, dflt=True)
-
-        # Create the console output object first for super() chaining during
-        # context subclass initialization
-        self._logcolor = self._arg('logcolor', logcolor, norm=True)
-        self._out = ConsolePrinter(prefix=self.__class__.__name__,
-                prefix_color=self._logcolor)
 
         self._repodir = self._arg('repodir', repodir, path=True)
         self._rootdir = self._arg('rootdir', rootdir, dflt=os.path.join(
@@ -600,36 +595,18 @@ class AbstractBaseContext(TenkoObject):
 
     # Console output methods
 
-    def out(self, *args, **kwargs):
-        """Display and log an output message.
-
-        Arguments (except `anybar`) are passed to `ConsolePrinter`.
-
-        Keyword arguments:
-        anybar -- optional, color name to set the AnyBar widget color
-        """
-        color = kwargs.pop('anybar', None)
-        if color is not None:
-            self.set_anybar_color(color)
-        self._out(*args, **kwargs)
-
-    def debug(self, *args, **kwargs):
-        """Display a debugging message. Arguments passed to `out(...)`."""
-        kwargs.update(debug=True)
-        self.out(*args, **kwargs)
-
     def printf(self, *args, **kwargs):
         """Send characters to stdout."""
-        self._out.printf(*args, **kwargs)
+        self.out.printf(*args, **kwargs)
 
     def box(self, filled=True, color=None):
-        self._out.box(filled=filled, color=color)
+        self.out.box(filled=filled, color=color)
 
     def newline(self):
-        self._out.newline()
+        self.out.newline()
 
     def hline(self, color='white'):
-        self._out.hline(color=color)
+        self.out.hline(color=color)
 
     def launch_anybar(self, color='white'):
         """Create an AnyBar instance for controlling an AnyBar widget."""
@@ -675,13 +652,13 @@ class AbstractBaseContext(TenkoObject):
             else:
                 stem = self._name
         fn = self.path(f'{stem}.log')
-        self._out.set_timestamps(timestamps)
-        self._out.set_outputfile(fn, newfile=newfile)
+        self.out.set_timestamps(timestamps)
+        self.out.set_outputfile(fn, newfile=newfile)
         return fn
 
     def close_logfile(self):
         """Close the current log file."""
-        self._out.closefile()
+        self.out.closefile()
 
     # Step wrapping methods
 
