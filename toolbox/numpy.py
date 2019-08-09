@@ -57,6 +57,8 @@ from numpy import (
         linspace,
         log,
         log1p,
+        log2,
+        log10,
         ma,
         matmul,
         max as max_,
