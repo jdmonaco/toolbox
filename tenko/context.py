@@ -29,7 +29,7 @@ from roto import data, datapath as tpath
 from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
 from roto.strings import snake2title, sluggify, naturalize
-from roto.dicts import AttrDict, merge_two_dicts
+from roto.dicts import AttrDict, merge_two_dicts, hashdict
 from specify import is_specified, is_param
 
 from . import parallel
@@ -60,6 +60,8 @@ def step(_f_, *args, **kwargs):
 
 
 class AbstractBaseContext(TenkoObject):
+
+    # TODO: Update this frickin' doc string at some point. LOL.
 
     """
     Smart context for open and reproducible data analysis.
@@ -134,21 +136,6 @@ class AbstractBaseContext(TenkoObject):
         ctxdir=None   , admindir=None , tmpdir=None    , rundir=None     ,
         profile=None  , logcolor=None , figfmt=None    , staticfigs=None ,
         **kwargs):
-        """
-        Set up the analysis context.
-
-        Keyword arguments:
-        desc -- short phrase describing the run
-        rundir -- path to folder that will contain run output
-        rootdir -- parent folder for all analysis output
-        resdir -- parent folder for results
-        h5file -- specify an alternate path for the datafile
-        figfmt -- default figure format for saving images (mpl is equivalent
-                  to using the rcParams['savefig.format'] setting)
-        staticfigs -- reuse figure windows for labeled figures
-        logcolor -- prefix color for shell log messages (default: purple)
-        profile -- ipython profile to use for parallel client
-        """
         super().__init__(color=self._arg('logcolor', logcolor, norm=True),
                 **kwargs)
 
@@ -215,7 +202,6 @@ class AbstractBaseContext(TenkoObject):
         self._lastcall = None
         self._running = False
         self._anybar = None
-        self._rand = None
 
         # Finished initializing!
         self._save()
@@ -459,30 +445,22 @@ class AbstractBaseContext(TenkoObject):
 
         self.out(self._regdir, prefix='Registration')
 
-    # Random number seed methods
+    # Random number seeds
 
-    def set_random_seed(self, seed):
-        """
-        Set random seed on `_rand` RandomState instance attribute from string.
-        """
-        klass = self.__class__.__name__
-        seed = klass if seed is None else seed
-        self._rand_seed = sum(list(map(ord, seed)))
-        self._rand = np.random.RandomState(seed=self._rand_seed)
-
-        self.out(f'Instance seed: {self._rand_seed} [key: \'{seed}\']')
-
-    def set_default_random_seed(self, seed):
+    def set_default_random_seed(self, seed=None):
         """
         Set the default numpy random seed from a string seed or hash.
         """
-        klass = self.__class__.__name__
-        seed = klass if seed is None else seed
-        self._rand_seed = sum(list(map(ord, seed)))
-        np.random.seed(self._rand_seed)
-        self._rand = np.random.random_sample
+        if seed is None:
+            key = self.seed_key
+            seed = self.seed_value  # set by TenkoObject init for all Specified
+        else:
+            key = hashdict(dict(seed=seed), nchars=32)
+            seed = sum(list(map(ord, key)))
 
-        self.out(f'Default seed: {self._rand_seed} [key: \'{seed}\']')
+        # Set the default numpy random state with the seed
+        np.random.seed(seed)
+        self.out(f'Seed for default RNG = {key!r}, value = {seed}')
 
     # Run directory path methods
 

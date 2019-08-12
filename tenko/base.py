@@ -2,18 +2,44 @@
 Base class for context components.
 """
 
+from numpy import random
+
 from pouty.console import ConsolePrinter
+from roto.dicts import hashdict
 
 
 class TenkoObject(object):
 
     """
-    Provide auto-naming and basic output functionality.
+    A base class to provide naming, random seeding, and console functionality.
     """
 
     __counts = {}
 
-    def __init__(self, name=None, color=None, textcolor=None, **kwargs):
+    def __init__(self, name=None, seed=None, color=None, textcolor=None,
+        **kwargs):
+        """
+        Configure object with name, random seed, and console output fucntions.
+
+        Arguments
+        ---------
+        name : str
+            A unique string name for this object. By default, a name will be
+            created from the object's class's name and a count
+
+        seed : str
+            A seed-key string to be converted into a random seed for an
+            instance-specific RandomState object at the `rnd` attribute
+
+        color : string, valid color name from pouty.conole
+            Prefix text color for console output from this object
+
+        textcolor : string, valid color name from pouty.conole
+            Message text color for console output from this object
+
+        Any remaining keyword arguments will be consumed but warnings will also
+        be issued, since they should typically be consumed earlier in the MRO.
+        """
         self._initialized = False
 
         # Set color/textcolor defaults for TenkoObject instances
@@ -53,6 +79,21 @@ class TenkoObject(object):
         for key, value in kwargs.items():
             self.out(f'{key} = {value!r}', prefix='UnconsumedKwargs',
                      warning=True)
+
+        # Set up a per-instance RandomState attribute based on a unique seed
+        self.seed_key = None
+        self.seed_value = None
+        self.rnd = None
+        if seed is None and hasattr(type(self), 'spec'):
+            specs = dict(self.items())
+            specs.update(name=self.name)  # prevent spec collisions
+            self.seed_key = hashdict(specs, nchars=32)
+        elif seed is not None:
+            self.seed_key = seed
+        if self.seed_key is not None:
+            self.seed_value = sum(list(map(ord, self.seed_key)))
+            self.rnd = random.RandomState(seed=self.seed_value)
+            self.debug(f'seed = {self.seed_key!r}, value = {self.seed_value}')
 
         self._initialized = True
 
