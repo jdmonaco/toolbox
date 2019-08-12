@@ -20,16 +20,16 @@ def merge_dicts(*dicts):
         d.update(newdict)
     return d
 
-def hashdict(d):
+def hashdict(d, *, nchars=10):
     """
     An key-value-based deterministic hash of a dict (or mapping).
     """
     keys = tuple(sorted(d.keys()))
     m = hashlib.shake_128()
-    [m.update(bytes(f'{k}={d[k]}', 'utf-8')) for k in keys]
-    return m.hexdigest(10)
+    [m.update(bytes(f'{k}={d[k]!r}', 'utf-8')) for k in keys]
+    return m.hexdigest(nchars)
 
-def pprint(d, indent=4, name='dict'):
+def pprint(d, *, indent=4, name='dict'):
     """
     Pretty print a dict (or mapping).
     """
