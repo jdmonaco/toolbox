@@ -81,9 +81,9 @@ class TenkoObject(object):
                      warning=True)
 
         # Set up a per-instance RandomState attribute based on a unique seed
-        if hasattr(self, 'seed_key') and hasattr(self, 'seed_value') and \
+        if not (hasattr(self, 'seed_key') and hasattr(self, 'seed_value') and \
                 hasattr(self, 'rnd') and self.seed_key is not None and \
-                self.seed_value is not None and self.rnd is not None:
+                self.seed_value is not None and self.rnd is not None):
             self.seed_key = None
             self.seed_value = None
             self.rnd = None
