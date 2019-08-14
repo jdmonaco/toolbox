@@ -144,9 +144,6 @@ class AbstractBaseContext(TenkoObject):
         self._tag = self._arg('tag', tag, norm=True, optional=True)
         self._projname = self._arg('projname', projname, norm=True)
         self._version = self._arg('version', version, norm=True)
-        self._profile = self._arg('profile', profile, dflt=self._projname)
-        self._figfmt = self._arg('figfmt', figfmt, dflt='mpl')
-        self._staticfigs = self._arg('staticfigs', staticfigs, dflt=True)
 
         self._repodir = self._arg('repodir', repodir, path=True)
         self._rootdir = self._arg('rootdir', rootdir, dflt=os.path.join(
@@ -159,9 +156,6 @@ class AbstractBaseContext(TenkoObject):
         self._modname = self.__class__.__module__.split('.')[-1]
         self._moduledir = self._arg('moduledir', moduledir, dflt=os.path.join(
             self._rootdir, self._modname))
-        self._h5file = self._arg('h5file', h5file, dflt=os.path.join(
-            self._moduledir, f'{self._name}.h5'))
-
         ctxdflt = os.path.join(self._moduledir, self._version)
         if self._desc is not None: ctxdflt += f'-{self._desc}'
         if self._tag is not None: ctxdflt += f'+{self._tag}'
@@ -181,6 +175,13 @@ class AbstractBaseContext(TenkoObject):
                 loaded = True
 
         if loaded: self.hline()
+
+        # Process other arguments not needed for the admin load after the load
+        self._profile = self._arg('profile', profile, dflt=self._projname)
+        self._figfmt = self._arg('figfmt', figfmt, dflt='mpl')
+        self._staticfigs = self._arg('staticfigs', staticfigs, dflt=True)
+        self._h5file = self._arg('h5file', h5file, dflt=os.path.join(
+            self._moduledir, f'{self._name}.h5'))
 
         # Create the data store object for the HDF data file
         self._datafile = None
