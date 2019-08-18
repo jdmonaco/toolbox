@@ -1,8 +1,9 @@
 """
-Replication of some shell functions.
+Wrappers for some common shell functions.
 """
 
 import os
+import re
 import sys
 import time
 import subprocess as subp
@@ -11,7 +12,7 @@ import subprocess as subp
 class Shell(object):
 
     @staticmethod
-    def open_(appname, newinstance=False):
+    def open_(appname, *, newinstance=False):
         """
         Open the MacOS application with the specified base name.
         """
@@ -29,6 +30,54 @@ class Shell(object):
         if res.returncode == 0:
             return Shell.pgrep(appname, newest=True)
         return None
+
+    @staticmethod
+    def clamshell():
+        """
+        Return whether the Macbook lid is closed.
+        """
+        if Shell.which('ioreg') is None:
+            return False
+        apple_state = Shell.run('ioreg -r -k AppleClamshellState -d 4')
+        clam_re = re.compile('\"AppleClamshellState\" = (\w*)$')
+        for line in apple_state.split('\n'):
+            match = clam_re.search(line)
+            if match:
+                yesno = str(match.groups()[0])
+                if yesno.lower() == 'yes':
+                    return True
+                return False
+
+    @staticmethod
+    def hostname(*, short=True):
+        """
+        Get the hostname of the current machine.
+        """
+        opt = '-s' if short else '-f'
+        return Shell.run('hostname', opt)
+
+    @staticmethod
+    def whoami():
+        """
+        Get the username of the current user.
+        """
+        return Shell.run('whoami')
+
+    @staticmethod
+    def run(prg, *args):
+        """
+        Run a shell command with args and return stdout as a string.
+        """
+        if ' ' in prg:
+            prg = prg.split()
+        elif type(prg) is str:
+            prg = [prg]
+        cmd = prg + list(args)
+        res = subp.run(cmd, stdout=subp.PIPE)
+        if res.returncode == 0:
+            output = res.stdout.decode().strip()
+            return output
+        return ''
 
     @staticmethod
     def killall(progname):

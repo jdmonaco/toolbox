@@ -7,7 +7,7 @@ import sys
 import time
 import subprocess as sp
 
-from .shell import Shell
+from toolbox.shell import Shell
 
 
 class Notifier(object):

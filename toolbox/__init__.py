@@ -11,6 +11,7 @@ import sys as _sys
 
 
 # Basic directory structure
+
 HOME = _os.getenv('HOME')
 if _sys.platform == 'win32':
     HOME = _os.getenv("USERPROFILE")
@@ -19,6 +20,16 @@ DATADIR = _os.path.join(HOME, 'data')
 
 
 # Machine information
+
 IMACPRO_DPI = int(217.57)
 MACBOOKPRO_DPI = int(220.53)
 LG_ULTRAWIDE_DPI = int(109.68)
+
+
+# Host information
+
+HOST_DPI = dict(
+        hilbert_retina = MACBOOKPRO_DPI,
+        hilbert = LG_ULTRAWIDE_DPI,
+        hebb = IMACPRO_DPI,
+)
