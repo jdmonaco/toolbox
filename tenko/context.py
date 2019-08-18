@@ -24,7 +24,8 @@ import tables as tb
 import pandas as pd
 
 from toolbox import HOME, PROJDIR, IMACPRO_DPI
-from pouty import AnyBar, ConsolePrinter
+from pouty.anybar import AnyBar
+from pouty.console import ConsolePrinter, COL_FUNC
 from roto import data, datapath as tpath
 from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
@@ -33,6 +34,7 @@ from roto.dicts import AttrDict, merge_two_dicts, hashdict
 from specify import is_specified, is_param
 
 from . import parallel
+from .state import Tenko
 from .base import TenkoObject
 from .store import DataStore
 
@@ -173,7 +175,6 @@ class AbstractBaseContext(TenkoObject):
             if os.path.isfile(os.path.join(self._admindir, INITFILE)):
                 self.load(self, load_instance=True)
                 loaded = True
-
         if loaded: self.hline()
 
         # Process other arguments not needed for the admin load after the load
@@ -205,10 +206,14 @@ class AbstractBaseContext(TenkoObject):
         self._anybar = None
 
         # Finished initializing!
+        Tenko.context = self
         self._save()
-        self.printdirs()
+        self.pprint()
 
-    def __str__(self):
+    def pprint(self):
+        """
+        Print out a colorful listing of context info including all paths.
+        """
         col_w = 13
         s = ['Class:'.ljust(col_w) + self.__class__.__name__]
         s += ['Module:'.ljust(col_w) + self.__class__.__module__]
@@ -227,10 +232,7 @@ class AbstractBaseContext(TenkoObject):
         env_keys = self.c.keys()
         if env_keys:
             s += ['EnvKeys:'.ljust(col_w) + ', '.join(env_keys)]
-        return '\n'.join(s) + '\n'
-
-    def printdirs(self):
-        self.printf(AbstractBaseContext.__str__(self), color=self._logcolor)
+        self.printf('\n'.join(s) + '\n')
 
     # Namespace methods
 
@@ -246,20 +248,6 @@ class AbstractBaseContext(TenkoObject):
         """
         cfg = '.'.join(self.__class__.__module__.split('.')[:-1] + ['config'])
         return import_module(cfg).Config
-
-    def get_state(self):
-        """
-        Helper method to access the shared state for the context.
-        """
-        state = '.'.join(self.__class__.__module__.split('.')[:-1] + ['state'])
-        return import_module(state).State
-
-    def reset_state(self):
-        """
-        Helper method to reset the shared state for the context.
-        """
-        state = '.'.join(self.__class__.__module__.split('.')[:-1] + ['state'])
-        import_module(state).reset_state()
 
     # Key-value persistence
 
@@ -398,7 +386,7 @@ class AbstractBaseContext(TenkoObject):
             'tmpdir'     : self._tmpdir,
             'rundir'     : self._rundir,
             'profile'    : self._profile,
-            'logcolor'   : self._logcolor,
+            'logcolor'   : self.out._pref.__name__,
             'figfmt'     : self._figfmt,
             'staticfigs' : self._staticfigs,
         }, INITFILE, base='admin')
@@ -665,7 +653,7 @@ class AbstractBaseContext(TenkoObject):
             'tag': tag,
             'params': params,
             'defaults': spec.defaults,
-            'kwname': spec.keywords,
+            'kwname': spec.keywords,  # NOTE: this is just None now...
             'kwvalues': kwargs
         }
 
@@ -714,8 +702,7 @@ class AbstractBaseContext(TenkoObject):
             self.out('Call parameters:\n{}',
                      self._format_params(params, spec.defaults))
         if kwargs:
-            self.out('Keywords (\'{}\'):\n{}',
-                     info['kwname'], self._format_keywords(kwargs))
+            self.out('Keywords:\n{}', self._format_keywords(kwargs))
         self.hline()
 
     def _format_params(self, params, defaults, bullet='-'):
@@ -827,6 +814,7 @@ class AbstractBaseContext(TenkoObject):
                 history = logfd.readlines()
         call = self._lastcall
         with open(logfn, 'w') as logfd:
+            logfd.write('Login: {}@{}\n'.format(Tenko.user, Tenko.host))
             logfd.write('Time: {}\n'.format(time.strftime('%c', call['time'])))
             signature = ', '.join(['%s=%s' % (k,repr(v))
                 for k,v in call['params']])

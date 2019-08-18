@@ -2,7 +2,7 @@
 Manage an HDF file as a data store.
 """
 
-__all__ = ['DataStore', 'close_all']
+__all__ = ('DataStore', 'close_all')
 
 import os
 import sys
@@ -32,13 +32,13 @@ class DataStore(TenkoObject):
     Manage access to a data storage file (HDF).
     """
 
-    def __init__(self, name='data', where=None):
-        super().__init__(name=name, color='ochre')
+    def __init__(self, name=None, stem='data', where=None):
+        super().__init__(color='yellow')
         self.parent = where is None and os.getcwd() or os.path.abspath(where)
         self.backup_path = os.path.join(self.parent, 'backups')
 
         self.h5file = None
-        self.h5path = os.path.join(self.parent, f'{self.name}.h5')
+        self.h5path = os.path.join(self.parent, f'{stem}.h5')
 
     def _check_cache(self):
         try:
