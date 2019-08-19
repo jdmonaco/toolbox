@@ -96,6 +96,7 @@ class ConsolePrinter(object):
     _outputfile = None
     _fd = None
     _timestamp = False
+    _hanging = False
 
     def __init__(self, prefix='[%Y-%m-%d %H:%M:%S] ', prefix_color=None,
         message_color=None):
@@ -110,7 +111,6 @@ class ConsolePrinter(object):
         self.set_prefix_color(prefix_color)
         self.set_message_color(message_color)
         self._notifier = None
-        self._hanging = False
 
     @classmethod
     def _isopen(cls):
@@ -309,9 +309,9 @@ class ConsolePrinter(object):
 
     def hline(self, ch='—', length=80, color='snow'):
         """Print a horizontal rule line."""
-        if self._hanging: self.newline()
-        self.printf(ch * length, color=color)
-        self.newline()
+        if self._hanging:
+            self.newline()
+        self.printf(ch * length + '\n', color=color)
 
     def newline(self):
         """Insert a newline."""
