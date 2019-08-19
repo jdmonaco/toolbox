@@ -177,7 +177,7 @@ class AutomaticCache(object):
             return
 
         obj = cls()
-        obj.__load(context, cachepath=cachepath)
+        obj.__load(context, cache_path=cachepath)
         return obj
 
     def clear_cache(self):
