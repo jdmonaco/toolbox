@@ -3,7 +3,10 @@ Managed context for data analysis runs.
 """
 
 import os
-import pdb
+try:
+    import ipdb as pdb
+except ImportError:
+    import pdb
 import sys
 import time
 try:
@@ -26,7 +29,8 @@ import pandas as pd
 from toolbox import HOME, PROJDIR, IMACPRO_DPI
 from pouty.anybar import AnyBar
 from pouty.console import ConsolePrinter, COL_FUNC
-from roto import data, datapath as tpath
+from roto import datapath as tpath
+from roto.data import DataStore
 from roto.figures import get_svg_figinfo
 from roto.paths import uniquify, tilde
 from roto.strings import snake2title, sluggify, naturalize
@@ -36,7 +40,6 @@ from specify import is_specified, is_param
 from . import parallel
 from .state import Tenko
 from .base import TenkoObject
-from .store import DataStore
 
 
 CALLFILE = 'call.log'
@@ -132,12 +135,12 @@ class AbstractBaseContext(TenkoObject):
             print(f'Warning: missing value for \'{name}\'', file=sys.stderr)
         return None
 
-    def __init__(self , desc=None     , tag=None       , projname=None   ,
-        version=None  , repodir=None  , rootdir=None   , datadir=None    ,
-        resdir=None   , regdir=None   , moduledir=None , h5file=None     ,
-        ctxdir=None   , admindir=None , tmpdir=None    , rundir=None     ,
-        profile=None  , logcolor=None , figfmt=None    , staticfigs=None ,
-        **kwargs):
+    def __init__(self   , desc=None    , tag=None       , projname=None ,
+        version=None    , repodir=None , rootdir=None   , datadir=None  ,
+        resdir=None     , regdir=None  , moduledir=None , h5file=None   ,
+        h5proj=None     , ctxdir=None  , admindir=None  , tmpdir=None   ,
+        rundir=None     , profile=None , logcolor=None  , figfmt=None   ,
+        staticfigs=None , **kwargs):
         super().__init__(color=self._arg('logcolor', logcolor, norm=True),
                 **kwargs)
 
@@ -183,10 +186,14 @@ class AbstractBaseContext(TenkoObject):
         self._staticfigs = self._arg('staticfigs', staticfigs, dflt=True)
         self._h5file = self._arg('h5file', h5file, dflt=os.path.join(
             self._moduledir, f'{self._name}.h5'))
+        self._h5proj = self._arg('h5proj', h5proj, dflt=os.path.join(
+            self._datadir, f'{self._projname}.h5'))
 
-        # Create the data store object for the HDF data file
+        # Create the HDF datafile handlers for the context and project
         self._datafile = None
+        self._projfile = None
         self._set_datafile(self._h5file)
+        self._set_project_datafile(self._h5proj)
 
         # Set the ipyparallel profile
         self.set_parallel_profile(self._profile)
@@ -223,12 +230,15 @@ class AbstractBaseContext(TenkoObject):
             s += ['Tag:'.ljust(col_w) + f"'{self._tag}'"]
         s += ['ProjectDir:'.ljust(col_w) + tilde(self._rootdir)]
         s += ['DataDir:'.ljust(col_w) + tilde(self._datadir)]
+        if self._projfile.exists():
+            s += ['ProjectData:'.ljust(col_w) + tilde(self._projfile.path())]
         s += ['ResultsDir:'.ljust(col_w) + tilde(self._resdir)]
         if self._regdir:
             s += ['RegDir:'.ljust(col_w) + tilde(self._regdir)]
         s += ['ModuleDir:'.ljust(col_w) + tilde(self._moduledir)]
-        s += ['Datafile:'.ljust(col_w) + tilde(self._datafile.path())]
         s += ['ContextDir:'.ljust(col_w) + tilde(self._ctxdir)]
+        if self._datafile.exists():
+            s += ['ContextData:'.ljust(col_w) + tilde(self._datafile.path())]
         env_keys = self.c.keys()
         if env_keys:
             s += ['EnvKeys:'.ljust(col_w) + ', '.join(env_keys)]
@@ -292,7 +302,7 @@ class AbstractBaseContext(TenkoObject):
             data = json.load(fd)
         return data
 
-    def write_json(self, data, *path, base=None, unique=False):
+    def write_json(self, data, *path, base=None, sort=False, unique=False):
         """
         Save key-value data to JSON file at the specified path.
 
@@ -308,7 +318,7 @@ class AbstractBaseContext(TenkoObject):
 
         with open(fpath, 'w') as fd:
             json.dump({k:v for k,v in data.items() if v is not None},
-                       fd, indent=2, skipkeys=True, sort_keys=False,
+                       fd, indent=2, skipkeys=True, sort_keys=sort,
                        separators=(', ', ': '))
         return fpath
 
@@ -381,6 +391,7 @@ class AbstractBaseContext(TenkoObject):
             'regdir'     : self._regdir,
             'moduledir'  : self._moduledir,
             'h5file'     : self._datafile.path(),
+            'h5proj'     : self._projfile.path(),
             'ctxdir'     : self._ctxdir,
             'admindir'   : self._admindir,
             'tmpdir'     : self._tmpdir,
@@ -745,6 +756,7 @@ class AbstractBaseContext(TenkoObject):
             self.set_anybar_color('green')
         finally:
             self.close_datafile()
+            self.close_datafile(project=True)
 
             # Show any new figures and restore interactive plotting
             curfigset = frozenset(self._figures.keys())
@@ -859,30 +871,48 @@ class AbstractBaseContext(TenkoObject):
     # Datafile methods
 
     def _set_datafile(self, newpath):
-        """Set a new datafile path."""
+        """Set the path to the context's module-based datafile."""
         if self._datafile:
             self._datafile.close()
 
         dpath = os.path.abspath(newpath)
         parent, fn = os.path.split(os.path.splitext(dpath)[0])
-        self._datafile = DataStore(name=fn, where=parent)
+        self._datafile = DataStore(name=f'{self._modname.title()}Data',
+                stem=fn, where=parent)
         self._h5file = self._datafile.path()
 
-    def get_datafile(self, readonly=None):
-        """Get a handle to the HDF data file for this analysis."""
-        return self._datafile.get(readonly=readonly)
+    def _set_project_datafile(self, projpath):
+        """Set the path to the project's shared datafile."""
+        if self._projfile:
+            self._projfile.close()
 
-    def flush_datafile(self):
+        dpath = os.path.abspath(projpath)
+        parent, fn = os.path.split(os.path.splitext(dpath)[0])
+        self._projfile = DataStore(name=f'{self._projname.title()}Data',
+                stem=fn, where=parent)
+        self._h5proj = self._projfile.path()
+
+    def get_datafile(self, readonly=None, *, project=False):
+        """Return the context's (default) or project's DataStore object."""
+        if project:
+            self._projfile.get(readonly=readonly)
+            return self._projfile
+        self._datafile.get(readonly=readonly)
+        return self._datafile
+
+    def flush_datafile(self, *, project=False):
         """Flush the data store file to disk."""
-        self._datafile.flush()
+        self.get_datafile(project=project).flush()
 
-    def close_datafile(self):
+    def close_datafile(self, *, project=False):
         """Close the data store file."""
-        self._datafile.close()
+        self.get_datafile(project=project).close()
 
-    def backup_datafile(self, tag=None):
+    def backup_datafile(self, tag=None, *, project=False):
         """Backup the data file and create a clean active copy."""
-        self._datafile.backup()
+        self.get_datafile(project=project).backup(tag=tag)
+
+    # Data accessor methods
 
     def datapath(self, *path, version=None, desc=None, classtag=None,
         step=None, tag=None, root=None):
@@ -912,70 +942,44 @@ class AbstractBaseContext(TenkoObject):
         base = 'v{}'.format(naturalize(Vers))
         if Desc: base += '__{}'.format(naturalize(Desc))
         run = naturalize(Step)
-        if Ctag: run += '__cls_{}'.format(naturalize(Ctag))
-        if Rtag: run += '__run_{}'.format(naturalize(Rtag))
+        if Ctag: base += '__tag_{}'.format(naturalize(Ctag))
+        if Rtag: run += '__tag_{}'.format(naturalize(Rtag))
 
         return tpath.join('/', base, run, *path)
 
-    def has_node(self, *path, **root):
+    def has_node(self, *path, project=False, **root):
         """Whether a data node exists."""
         p = self.datapath(*path, **root)
-        try:
-            self.get_datafile().get_node(p)
-        except tb.NoSuchNodeError as e:
-            return False
-        return True
+        return self.get_datafile(project=project).has_node(p)
 
-    def get_node(self, *path, **root):
+    def get_node(self, *path, project=False, **root):
         """Get a handle to a data node if it exists."""
         if len(path) == 1 and isinstance(path[0], tb.Node):
             p = path[0]._v_pathname
         else:
             p = self.datapath(*path, **root)
-        node = None
-        try:
-            node = self.get_datafile().get_node(p)
-        except tb.NoSuchNodeError as e:
-            self.out(f'Missing node: {p}', prefix='NodeError', error=True)
-            raise(e)
-        return node
+        return self.get_datafile(project=project).get_node(p)
 
-    def read_node(self, *path, **root):
+    def read_node(self, *path, project=False, **root):
         """Read the given node."""
-        node = self.get_node(*path, **root)
-        if not hasattr(node, 'read'):
-            self.out('Node is not readable: {}', node._v_pathname, error=True)
-            raise IOError('Data node does not have a read method')
-        return node.read()
+        return self.get_datafile(project=project).get_node(*path,
+                    **root).read()
 
-    def read_array(self, *path, **root):
+    def read_array(self, *path, project=False, **root):
         """Read array data from the given node."""
-        node = self.get_node(*path, **root)
-        if not isinstance(node, tb.Array):
-            self.out('Not an array: {}', node._v_pathname, error=True)
-            raise TypeError('Can only read array data from an array node')
-        return node.read()
+        return self.get_datafile(project=project).read_array(
+                    self.datapath(*path, **root))
 
-    def read_dataframe(self, *path, **root):
+    def read_dataframe(self, *path, project=False, **root):
         """Read pandas dataframe from the given node."""
-        node = self.get_node(*path, **root)
-        key = node._v_pathname
-        self.close_datafile()
-        pdf = pd.HDFStore(self._datafile.path())
-        try:
-            df = pdf[key]
-        except KeyError:
-            raise IOError('No dataframe stored at %s' % key)
-        finally:
-            pdf.close()
-        return df
+        return self.get_datafile(project=project).read_dataframe(
+                    self.datapath(*path, **root))
 
-    def read_simulation(self, *path, **root):
+    def read_simulation(self, *path, project=False, **root):
         """Read Brian simulation output from the data path."""
         grp = self.get_node(*path, **root)
         if grp._v_attrs['tenko_type'] != 'brian':
-            self.out('Not a Brian simulation: %s' % grp._v_pathname,
-                    error=True)
+            self.out('Not a simulation: {}', grp._v_pathname, error=True)
             raise TypeError('Can only read stored Brian simulation data')
 
         # While HDF5 file is open, filter parent group for monitor nodes
@@ -992,41 +996,35 @@ class AbstractBaseContext(TenkoObject):
         # Create namedtuple with dataframes loaded from HDF5 file
         dfs = {}
         for name in dfnames:
-            dfs[name] = self.read_dataframe(parent, name)
+            dfs[name] = self.read_dataframe(parent, name, project=project)
 
         simdata = namedtuple('%sData' % network_name, dfs.keys())
         return simdata(**dfs)
 
-    def create_group(self, *path, attrs={}, **root):
+    def create_group(self, *path, attrs={}, project=False, **root):
         """Create a new group in the datafile."""
         where, name = tpath.split(self.datapath(*path, **root))
-        dfile = self.get_datafile(False)
-        try:
-            grp = dfile.get_node(where, name=name)
-        except tb.NoSuchNodeError:
-            grp = data.new_group(dfile, where, name)
-            self._write_v_attrs(grp, attrs)
-        else:
-            self.out('group already exists: {}', grp._v_pathname,
-                    prefix='Warning', error=True)
+        grp = self.get_datafile(project=project).new_group(where, name)
+        if attrs: self._write_v_attrs(grp, attrs)
+        self.flush_datafile(project=project)
         return grp
 
-    def create_table(self, descr, *path, attrs={}, **root):
+    def create_table(self, descr, *path, attrs={}, project=False, **root):
         """Create a new table in the datafile."""
-        return self._new_node('table', data.new_table, path, descr, attrs,
-                root, force=True)
+        return self._new_node('table', self.get_datafile(project=project
+                    ).new_table, path, descr, attrs, root)
 
-    def save_array(self, arr, *path, attrs={}, **root):
+    def save_array(self, arr, *path, attrs={}, project=False, **root):
         """Save a data array to the datafile."""
-        return self._new_node('array', data.new_array, path, np.asarray(arr),
-                attrs, root)
+        return self._new_node('array', self.get_datafile(project=project
+                    ).new_array, path, np.asarray(arr), attrs, root)
 
-    def save_dataframe(self, df, *path, attrs={}, **root):
+    def save_dataframe(self, df, *path, attrs={}, project=False, **root):
         """Save a pandas Series/DataFrame/Panel to the datafile."""
-        return self._new_node('dataframe', data.new_dataframe, path, df, attrs,
-                root, pandas=True)
+        return self._new_node('dataframe', self.get_datafile(project=project
+                    ).new_dataframe, path, df, attrs, root)
 
-    def save_simulation(self, network, *path, attrs={}, **root):
+    def save_simulation(self, network, *path, attrs={}, project=False, **root):
         """Save Brian simulation output in group/DataFrame structure."""
         import brian2 as br
         monitors = [obj for obj in network.objects if type(obj) in
@@ -1088,32 +1086,24 @@ class AbstractBaseContext(TenkoObject):
                     *(path + (mon.name,)), attrs=mon_attrs, **root)
 
         # Write context attributes to parent group of simulation data
-        self.get_datafile(False)
-        grp = self.get_node(*path, **root)
+        self.get_datafile(project=project)
+        grp = self.get_node(*path, project=project, **root)
         grp_attrs = dict(tenko_type='brian', name=network.name)
         grp_attrs = merge_two_dicts(grp_attrs, attrs)
         self._write_v_attrs(grp, grp_attrs)
         return grp
 
-    def _new_node(self, ntype, new_node, path, X, attrs, root, pandas=False,
-        **kwds):
+    def _new_node(self, ntype, new_node, path, X, attrs, root, **kwds):
         p = self.datapath(*path, **root)
         where, name = tpath.split(p)
         title = attrs.pop('title', snake2title(name))
-        kwds.update(createparents=True, title=title)
-        if pandas:
-            self.close_datafile()
-            dfile = pd.HDFStore(self._datafile.path())
-        else:
-            dfile = self.get_datafile(False)
-        node = new_node(dfile, where, name, X, **kwds)
+        kwds.update(title=title)
+        node = new_node(where, name, X, **kwds)
         self._write_v_attrs(node, attrs)
         pathname = node._v_pathname
         if ntype == 'array':
             pathname += ' |{}|'.format('x'.join(list(map(str, X.shape))))
         self.out(f'{pathname} ("{title}")', prefix=f'Saved{ntype.title()}')
-        if pandas:
-            dfile.close()
         return node
 
     def _write_v_attrs(self, node, attrs):

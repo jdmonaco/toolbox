@@ -2,9 +2,12 @@
 Automatic caching storage for expensive computed sigals.
 """
 
+import sys
+
 from toolbox.numpy import random
 from roto.strings import naturalize
 from roto.dicts import hashdict
+from tenko.state import Tenko
 
 
 class AutomaticCache(object):
@@ -80,10 +83,11 @@ class AutomaticCache(object):
         self.__cachename = '{}_{}'.format(naturalize(self.__class__.__name__),
                 hashdict(self.__key_values))
 
-    def compute(self, context=None):
+    def compute(self):
         """
         Perform the computation and cache the results in context's datafile.
         """
+        context = Tenko.context if 'context' in Tenko else None
         if context is not None and self.__check_cache(context):
             return self.__load(context)
 
@@ -110,7 +114,7 @@ class AutomaticCache(object):
 
     def __cache(self, context):
         """
-        Cache the computed data to the given context's datafile.
+        Cache the computed data to the context's datafile.
         """
         for name in self._cache_attrs:
             if getattr(self, name) is None:
@@ -121,30 +125,36 @@ class AutomaticCache(object):
 
         # Create the cache data group with all attributes
         grp = context.create_group(self.__cachename, attrs=self.__attrs,
-                root=self._data_root)
+                project=True, root=self._data_root)
 
         for name in self._cache_attrs:
             data = getattr(self, name)
-            context.save_array(data, name, attrs=self.__attrs, root=grp)
+            context.save_array(data, name, project=True, attrs=self.__attrs,
+                               root=grp)
+
+        context.flush_datafile(project=True)
 
     def __check_cache(self, context):
         """
         Check whether the key specification has been cached.
         """
-        return context.has_node(self.__cachename, root=self._data_root)
+        return context.has_node(self.__cachename, project=True,
+                                root=self._data_root)
 
     def __load(self, context, cache_path=None):
         """
         Load cached data keyed by the current specification.
         """
         if cache_path is None:
-            grp = context.get_node(self.__cachename, root=self._data_root)
+            cpath = context.datapath(self.__cachename, root=self._data_root)
         else:
-            grp = context.get_node(root=cache_path)
+            cpath = context.datapath(root=cache_path)
 
         for name in self._cache_attrs:
-            setattr(self, name, context.read_array(name, root=grp))
+            setattr(self, name, context.read_array(name, root=cpath,
+                    project=True))
 
+        grp = context.get_node(root=cpath, project=True)
         for key in self._key_params:
             self.__key_values[key] = grp._v_attrs[key]
             self.__attrs[name] = grp._v_attrs[key]
@@ -154,30 +164,35 @@ class AutomaticCache(object):
             self.__attrs[name] = grp._v_attrs[name]
 
         self._finish_init()
-        context.out(grp._v_pathname, prefix='AutoCacheLoad')
+        context.out(cpath, prefix='AutoCacheLoad')
 
     @classmethod
-    def load_cache_from_path(cls, context, cachepath):
+    def load_cache_from_path(cls, cachepath):
         """
         Load a cached object from an existing path ('/<root>/<name>_<hash>').
         """
+        context = Tenko.context if 'context' in Tenko else None
+        if context is None:
+            print('AutoCacheLoadError: no context available', file=sys.stderr)
+            return
+
         obj = cls()
-        obj.__load(context, cachepath)
+        obj.__load(context, cachepath=cachepath)
         return obj
 
-    def clear_cache(self, context):
+    def clear_cache(self):
         """
         Remove the cached data for the current specification.
         """
+        context = Tenko.context if 'context' in Tenko else None
         if not self.__check_cache(context):
             return
 
-        context.get_datafile(readonly=False)
-        cache = context.get_node(self.__cachename, root=self._data_root)
-        cache._f_remove(recursive=True)
-        context.close_datafile()
+        cachefile = context.get_datafile(readonly=False, project=True)
+        cachefile.remove_node('/' + self._data_root, name=self.__cachename)
+        cachefile.close()
 
-    def delete_all_cache_data(self, context):
+    def delete_all_cache_data(self):
         """
         Completely delete all cached data that has been stored for this object
         type, regardless of key parameters or specification.
@@ -186,14 +201,12 @@ class AutomaticCache(object):
         please make sure there is nothing else also saved in that subtree of
         the data file that you would like to keep!
         """
-        import tables as tb
-        context.get_datafile(readonly=False)
-        try:
-            root = context.get_node(root=self._data_root)
-        except tb.NoSuchNodeError:
-            context.out('Could not find data root (/{})', self._data_root,
-                    prefix='CacheDelete', error=True)
-        else:
-            root._f_remove(recursive=True)
-        finally:
-            context.close_datafile()
+        context = Tenko.context if 'context' in Tenko else None
+        if context is None:
+            print('AutoCacheDeleteError: no context available',
+                    file=sys.stderr)
+            return
+
+        cachefile = context.get_datafile(readonly=False, project=True)
+        cachefile.remove_node('/' + self._data_root)
+        cachefile.close()

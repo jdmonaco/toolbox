@@ -17,10 +17,9 @@ import matplotlib.pyplot as plt
 from scipy.signal import medfilt2d
 from matplotlib.patches import Circle
 
-import roto.data as rd
 from roto.images import uint8color, rgba_to_image, _fill_rgba
+from roto.data import DataStore
 from pouty import ConsolePrinter
-from tenko.store import DataStore
 from toolbox import DATADIR, IMACPRO_DPI
 
 from .svg import load_environment
@@ -67,15 +66,12 @@ class EnvironmentGeometry(object):
         self.envdir = os.path.join(self.mapdir, name)
         self.svgpath = os.path.join(self.mapdir, f'{name}.svg')
         self.h5path = os.path.join(self.envdir, 'geometry.h5')
+        self.datafile = DataStore(self.h5path)
         self.infopath = os.path.join(self.envdir, 'info.json')
         self.backupdir = os.path.join(self.envdir, 'backups')
         self.recompute = recompute
 
         assert os.path.isdir(self.mapdir), f'not a directory: {mapdir}'
-
-        parent, h5name = os.path.split(os.path.splitext(self.h5path)[0])
-        self.store = DataStore(name=h5name, where=parent, logfunc=self.out,
-                quiet=True)
 
         if os.path.isfile(self.svgpath):
             self.out(self.svgpath, prefix='MapFile')
@@ -460,9 +456,9 @@ class EnvironmentGeometry(object):
         """
         Test whether all named objects are stored in the h5 file.
         """
-        with self.store as df:
+        with self.datafile:
             for name in names:
-                if not rd.has_node(df, f'/{name}'):
+                if not self.datafile.has_node(f'/{name}'):
                     return False
         return True
 
@@ -471,10 +467,10 @@ class EnvironmentGeometry(object):
         Remove array data from the h5 file.
         """
         removed = []
-        with self.store as df:
+        with self.datafile:
             for name in names:
-                if rd.has_node(df, f'/{name}'):
-                    df.remove_node(f'/{name}', recursive=True)
+                if self.datafile.has_node(f'/{name}'):
+                    self.datafile.remove_node(f'/{name}')
                     delattr(self, name)
                     removed.append(f'{name}')
 
@@ -485,9 +481,9 @@ class EnvironmentGeometry(object):
         Read array data from the h5 file into instance attributes.
         """
         loaded = []
-        with self.store as df:
+        with self.datafile:
             for name in names:
-                arr = rd.read_array(df, f'/{name}')
+                arr = self.datafile.read_array(f'/{name}')
                 setattr(self, name, arr)
                 shape = 'x'.join(list(map(str, arr.shape)))
                 if np.ma.isMA(arr):
@@ -501,10 +497,10 @@ class EnvironmentGeometry(object):
         Save arrays to Array objects in the h5 file.
         """
         saved = []
-        with self.store as df:
+        with self.datafile:
             for name, arr in data.items():
                 setattr(self, name, arr)
-                res = rd.new_array(df, '/', name, arr)
+                res = self.datafile.new_array('/', name, arr)
                 if arr.ndim == 2:
                     self._save_matrix_image(arr, name, **imagefmt)
                 elif arr.ndim == 3:
