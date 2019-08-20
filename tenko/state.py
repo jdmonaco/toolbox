@@ -2,7 +2,7 @@
 Global run-time state for contexts.
 """
 
-__all__ = ['Tenko']
+__all__ = ('Tenko',)
 
 
 import time
@@ -22,6 +22,8 @@ class TenkoState(AttrDict):
 def get_host_dpi_key(host):
     if host == 'hilbert' and not Shell.clamshell():
         return 'hilbert_retina'
+    if host not in HOST_DPI:
+        return 'unknown'
     return host
 
 
