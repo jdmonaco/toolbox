@@ -249,7 +249,7 @@ class ConsolePrinter(object):
             console = stdout
 
         # Resolve any hanging lines
-        if self._hanging:
+        if self.__class__._hanging:
             self.newline()
 
         # Print the first line of the message with possible path truncation
@@ -309,7 +309,7 @@ class ConsolePrinter(object):
 
     def hline(self, ch='—', length=80, color='snow'):
         """Print a horizontal rule line."""
-        if self._hanging:
+        if self.__class__._hanging:
             self.newline()
         self.printf(ch * length + '\n', color=color)
 
@@ -330,7 +330,7 @@ class ConsolePrinter(object):
             self._fd.write(s_nocolor)
             self._fd.flush()
 
-        self._hanging = not s.endswith('\n')
+        self.__class__._hanging = not s.endswith('\n')
 
 
 # Convenience functions
