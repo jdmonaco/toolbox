@@ -1206,7 +1206,7 @@ class AbstractBaseContext(TenkoObject):
         return fig
 
     def savefig(self, label=None, base=None, tag=None, unique=True,
-        tight_padding=None, closeafter=False, **savefig):
+        tight_padding=None, closeafter=False, quiet=False, **savefig):
         """Save an open figure as an image file.
 
         Arguments:
@@ -1244,7 +1244,8 @@ class AbstractBaseContext(TenkoObject):
         self._savefig.update(savefig)
 
         self._figures[label].savefig(path, **self._savefig)
-        self.out(path, prefix='SavedFigure')
+        if not quiet:
+            self.out(path, prefix='SavedFigure')
         self._savefig_path = path
 
         if closeafter:

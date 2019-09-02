@@ -137,8 +137,8 @@ def empirical_CI(x, alpha=0.05):
     x = np.asarray(x)
     xs = x.size
     s = np.argsort(x)
-    c = max(1, int((alpha / 2) * xs))
-    return Interval(x[s[c-1]], x[s[xs-c]])
+    c = max(0, int((alpha / 2) * xs))
+    return Interval(x[s[c]], x[s[xs-c-1]])
 
 def confidence_interval(x, alpha=0.05, axis=0):
     """Inferential confidence interval for sample data.
