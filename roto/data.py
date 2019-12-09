@@ -390,6 +390,28 @@ class DataStore(TenkoObject):
         if name: key = join(where, name)
         return self.pdfile[key]
 
+    @datamethod
+    def read_dataframe_from_table(self, where, name=None, **from_recs_kwds):
+        """
+        Return a pandas Dataframe with data from a stored table.
+
+        Remaining keyword arguments are passed to
+        `pandas.DataFrame.from_records`.
+        """
+        if type(where) is tb.Table:
+            table = where
+        else:
+            table = self.get_node(where, name=name)
+
+        df = pd.DataFrame.from_records(table.read(), **from_recs_kwds)
+
+        # String columns should be decoded from bytes arrays
+        for colname, coltype in table.coltypes.items():
+            if coltype == 'string':
+                df[colname] = df[colname].apply(lambda x: x.decode())
+
+        return df
+
     @writemethod
     def new_group(self, where, name, **kwargs):
         """
