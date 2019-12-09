@@ -19,7 +19,7 @@ class TenkoObject(object):
     def __init__(self, name=None, seed=None, color=None, textcolor=None,
         **kwargs):
         """
-        Configure object with name, random seed, and console output fucntions.
+        Configure object with name, random seed, and console output functions.
 
         Arguments
         ---------
