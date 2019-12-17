@@ -21,7 +21,7 @@ DATADIR = _os.path.join(HOME, 'data')
 
 # Screen resolution information
 
-IMACPRO_DPI = int(217.57)  # TODO: as scaled?
+IMACPRO_DPI = int(122.38)  # as scaled
 MACBOOKPRO_DPI = int(150.94)  # as scaled
 LG_ULTRAWIDE_DPI = int(109.68)
 STANDARD_DPI = 96
