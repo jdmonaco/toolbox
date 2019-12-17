@@ -46,16 +46,10 @@ def ylabel(ax, label, **kwargs):
 
 def despine(ax, top=False, right=False, left=True, bottom=True):
     ax.tick_params(top=top, right=right, left=left, bottom=bottom)
-    if not top:
-        ax.spines['top'].set_visible(False)
-    if not right:
-        ax.spines['right'].set_visible(False)
-    if not left:
-        ax.set_yticklabels([])
-        ax.spines['left'].set_visible(False)
-    if not bottom:
-        ax.set_xticklabels([])
-        ax.spines['bottom'].set_visible(False)
+    ax.spines['top'].set_visible(top)
+    ax.spines['right'].set_visible(right)
+    ax.spines['left'].set_visible(left)
+    ax.spines['bottom'].set_visible(bottom)
 
 def quicktitle(ax, text, **kwds):
     """Put short title on top an axis plot, optimized for low-margin plots
