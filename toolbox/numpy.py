@@ -83,6 +83,7 @@ from numpy import (
         sign,
         size,
         sqrt,
+        std,
         sum as sum_,
         tan,
         tanh,
