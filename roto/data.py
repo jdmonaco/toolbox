@@ -43,7 +43,7 @@ class OverwriteDisallowed(Exception):
 def datamethod(func):
     @functools.wraps(func)
     def wrapped_data_method(self, *args, **kwargs):
-        self.get()
+        self.get(readonly=kwargs.pop('readonly', None))
         return func(self, *args, **kwargs)
     return wrapped_data_method
 
