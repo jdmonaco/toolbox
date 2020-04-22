@@ -12,6 +12,34 @@ import subprocess as subp
 class Shell(object):
 
     @staticmethod
+    def finder_alias(source, destfolder):
+        """
+        Create a Finder alias for the given path in the specified folder.
+        """
+        if sys.platform != 'darwin':
+            return None
+        if not os.path.exists(source):
+            print(f'Shell.finder_alias: source does not exist ({source})',
+                    file=sys.stderr)
+            return None
+        if not os.path.isdir(destfolder):
+            print(f'Shell.finder_alias: invalid destination ({destfolder})',
+                    file=sys.stderr)
+            return None
+        spath = os.path.abspath(source)
+        dpath = os.path.abspath(destfolder)
+        osa = Shell.which('osascript')
+        if osa is None:
+            print(f'Shell.finder_alias: missing osa', file=sys.stderr)
+            return None
+        scpt = "tell application \"Finder\" to make alias file to " \
+               f"(POSIX file \"{spath}\") at (POSIX file \"{dpath}\")"
+        if Shell.run('osascript -e', scpt):
+            return
+        print(f'Shell.finder_alias: failed to create alias ({spath})',
+                file=sys.stderr)
+
+    @staticmethod
     def open_(appname, *, newinstance=False):
         """
         Open the MacOS application with the specified base name.
@@ -64,14 +92,11 @@ class Shell(object):
         return Shell.run('whoami')
 
     @staticmethod
-    def run(prg, *args):
+    def run(progname, *args):
         """
         Run a shell command with args and return stdout as a string.
         """
-        if ' ' in prg:
-            prg = prg.split()
-        elif type(prg) is str:
-            prg = [prg]
+        prg = progname.split()
         cmd = prg + list(args)
         res = subp.run(cmd, stdout=subp.PIPE)
         if res.returncode == 0:
