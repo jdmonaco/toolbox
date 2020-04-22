@@ -766,9 +766,6 @@ class AbstractBaseContext(TenkoObject):
             if len(plt.get_figlabels()):
                 plt.draw()
 
-            # Restore matplotlib configuration if it was changed locally
-            mpl.rc_file_defaults()
-
         return result
 
     def _step_exit(self, method, args, kwargs, status):
