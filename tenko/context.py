@@ -797,9 +797,16 @@ class AbstractBaseContext(TenkoObject):
                 self.out(histdir, prefix='FileBackup')
 
             # Move all the current (temp) output files to the run directory
+            # and alias some output files to a special subfolder
             for fn in os.listdir(self._tmpdir):
-                os.rename(os.path.join(self._tmpdir, fn),
-                          os.path.join(self._rundir, fn))
+                tmppath = os.path.join(self._tmpdir, fn)
+                runpath = os.path.join(self._rundir, fn)
+                os.rename(tmppath, runpath)
+                ext = os.path.splitext(fn)
+                if ext in ('.png', '.pdf', '.mp4'):
+                    figdir = self.path('figures', base='module')
+                    if Shell.finder_alias(runpath, figdir) == 0:
+                        self.out(f'Alias -> {os.path.join(figdir, fn)}')
 
             self.out(self._rundir, prefix='OutputDir')
             self._save()

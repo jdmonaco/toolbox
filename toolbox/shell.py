@@ -17,27 +17,28 @@ class Shell(object):
         Create a Finder alias for the given path in the specified folder.
         """
         if sys.platform != 'darwin':
-            return None
+            return 1
         if not os.path.exists(source):
             print(f'Shell.finder_alias: source does not exist ({source})',
                     file=sys.stderr)
-            return None
+            return 2
         if not os.path.isdir(destfolder):
             print(f'Shell.finder_alias: invalid destination ({destfolder})',
                     file=sys.stderr)
-            return None
+            return 3
         spath = os.path.abspath(source)
         dpath = os.path.abspath(destfolder)
         osa = Shell.which('osascript')
         if osa is None:
-            print(f'Shell.finder_alias: missing osa', file=sys.stderr)
-            return None
+            print(f'Shell.finder_alias: missing osascript', file=sys.stderr)
+            return 4
         scpt = "tell application \"Finder\" to make alias file to " \
                f"(POSIX file \"{spath}\") at (POSIX file \"{dpath}\")"
-        if Shell.run('osascript -e', scpt):
-            return
+        if Shell.run(f'{osa} -e', scpt):
+            return 0
         print(f'Shell.finder_alias: failed to create alias ({spath})',
                 file=sys.stderr)
+        return 5
 
     @staticmethod
     def open_(appname, *, newinstance=False):
