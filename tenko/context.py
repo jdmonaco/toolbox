@@ -27,6 +27,7 @@ import tables as tb
 import pandas as pd
 
 from toolbox import HOME, PROJDIR, IMACPRO_DPI
+from toolbox.shell import Shell
 from pouty.anybar import AnyBar
 from pouty.console import ConsolePrinter, COL_FUNC
 from roto import datapath as tpath
@@ -516,11 +517,11 @@ class AbstractBaseContext(TenkoObject):
 
         return path
 
-    def mkdir(self, *rpath):
+    def mkdir(self, *rpath, base=None):
         """
         Create a subdirectory within the run directory.
         """
-        dpath = self.path(*rpath)
+        dpath = self.path(*rpath, base=base)
         if os.path.isdir(dpath):
             return dpath
         os.makedirs(dpath)
@@ -802,11 +803,14 @@ class AbstractBaseContext(TenkoObject):
                 tmppath = os.path.join(self._tmpdir, fn)
                 runpath = os.path.join(self._rundir, fn)
                 os.rename(tmppath, runpath)
-                ext = os.path.splitext(fn)
+                _, ext = os.path.splitext(fn)
                 if ext in ('.png', '.pdf', '.mp4'):
-                    figdir = self.path('figures', base='module')
+                    figdir = self.mkdir('figures', base='module')
+                    aliaspath = os.path.join(figdir, fn)
+                    if os.path.exists(aliaspath):
+                        os.unlink(aliaspath)
                     if Shell.finder_alias(runpath, figdir) == 0:
-                        self.out(f'Alias -> {os.path.join(figdir, fn)}')
+                        self.out(aliaspath, prefix='FigureAlias')
 
             self.out(self._rundir, prefix='OutputDir')
             self._save()
