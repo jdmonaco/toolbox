@@ -809,7 +809,7 @@ class AbstractBaseContext(TenkoObject):
                     aliaspath = os.path.join(figdir, fn)
                     if os.path.exists(aliaspath):
                         os.unlink(aliaspath)
-                    elif os.path.exists(aliaspath + ' alias'):
+                    if os.path.exists(aliaspath + ' alias'):
                         os.unlink(aliaspath + ' alias')
                     if Shell.finder_alias(runpath, figdir) == 0:
                         self.out(aliaspath, prefix='FigureAlias')
