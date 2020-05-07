@@ -46,6 +46,7 @@ from numpy import (
         empty,
         empty_like,
         exp,
+        expand_dims,
         expm1,
         eye,
         floor,

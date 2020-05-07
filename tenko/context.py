@@ -448,7 +448,7 @@ class AbstractBaseContext(TenkoObject):
 
     # Random number seeds
 
-    def set_default_random_seed(self, seed=None):
+    def set_default_random_seed(self, seed=None, key=None):
         """
         Set the default numpy random seed from a string seed or hash.
         """
@@ -461,7 +461,7 @@ class AbstractBaseContext(TenkoObject):
 
         # Set the default numpy random state with the seed
         np.random.seed(seed)
-        self.out(f'Seed for default RNG = {key!r}, value = {seed}')
+        self.out(f'Default RNG seed = {seed}')
 
     # Run directory path methods
 
