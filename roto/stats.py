@@ -224,9 +224,9 @@ def t_welch(x, y, tails=2, return_tpdf=False):
     assert tails in (1,2), "invalid: tails must be 1 or 2, found %s"%str(tails)
     x, y = np.asarray(x), np.asarray(y)
     nx, ny = x.size, y.size
-    vx, vy = x.var(), y.var()
-    df = int((vx/nx + vy/ny)**2 / # Welch-Satterthwaite equation
-        ((vx/nx)**2 / (nx - 1) + (vy/ny)**2 / (ny - 1)))
+    vx, vy = x.var(ddof=1), y.var(ddof=1)
+    df = (vx/nx + vy/ny)**2 / # Welch-Satterthwaite equation
+        ((vx/nx)**2 / (nx - 1) + (vy/ny)**2 / (ny - 1))
     t_obs = (x.mean() - y.mean()) / np.sqrt(vx/nx + vy/ny)
     p_value = tails * st.t.sf(abs(t_obs), df)
     if return_tpdf:
