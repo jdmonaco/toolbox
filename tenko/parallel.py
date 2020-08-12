@@ -2,7 +2,8 @@
 Handle to the parallel client.
 """
 
-__all__ = ['client', 'close']
+__all__ = ('client', 'close')
+
 
 import ipyparallel as ipp
 
@@ -15,11 +16,15 @@ out = ConsolePrinter(prefix="ParallelClient", prefix_color='blue')
 
 
 def set_default_profile(profile):
-    """Set the default IPython profile for parallel clients."""
+    """
+    Set the default IPython profile for parallel clients.
+    """
     handles.DEFAULT_PROFILE = str(profile)
 
 def client(profile=None):
-    """Get a parallel client object."""
+    """
+    Get a parallel client object.
+    """
     profile = profile or handles.DEFAULT_PROFILE
     for rc in handles.IPP_CLIENTS:
         if not rc._closed and rc.profile == profile:
@@ -30,7 +35,9 @@ def client(profile=None):
     return rc
 
 def close():
-    """Close the client if it's open."""
+    """
+    Close the client if it's open.
+    """
     profiles = {rc.profile for rc in handles.IPP_CLIENTS if not rc._closed}
     [rc.close() for rc in handles.IPP_CLIENTS]
     handles.IPP_CLIENTS.clear()

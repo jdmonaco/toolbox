@@ -12,6 +12,7 @@ from roto.paths import tilde
 from .notifier import Notifier
 
 
+QUIET_MODE = False
 DEBUG_MODE = False
 WINDOWS = (platform == 'win32')
 DEFAULT_PREFIX_COLOR = 'cyan'
@@ -188,14 +189,16 @@ class ConsolePrinter(object):
         Keyword arguments:
         prefix -- override default prefix string
         hideprefix -- make prefix invisible but preserve indent
+        quiet -- control whether this message is printed (default: quiet mode)
         debug -- specify where this is a debug message
         error -- specify whether this is an error message
         popup -- display the message with a system popup notification
         **fmt -- remaining kwargs provide formating substitutions
         """
-        # Handle a quick exit for non-debug-mode first
+        # Handle a quick exit for non-debug-mode and quiet mode
+        quiet = fmt.pop('quiet', QUIET_MODE)
         debug = fmt.pop('debug', False)
-        if debug and not DEBUG_MODE:
+        if quiet or (debug and not DEBUG_MODE) and not (warning or error):
             return
 
         # Parse the keyword arguments
@@ -319,11 +322,15 @@ class ConsolePrinter(object):
 
     def printf(self, s, color=None):
         """Raw flushed color output to the console."""
+        if QUIET_MODE: return
+
         colf = self._pref if color is None else COL_FUNC[color]
         s = str(s)
 
-        if WINDOWS: print(s, end='', flush=True)
-        else:       print(colf(s), end='', flush=True)
+        if WINDOWS: 
+            print(s, end='', flush=True)
+        else:       
+            print(colf(s), end='', flush=True)
 
         if self._isopen():
             s_nocolor = re.sub('(\x1b\[\d;\d\dm)|(\x1b\[0m)', '', s)
@@ -341,9 +348,8 @@ def log(*args, **kwargs):
     Logger(*args, **kwargs)
 
 def debug(*args, **kwargs):
-    if DEBUG_MODE:
-        kwargs.update(prefix=kwargs.get('prefix', 'debug'), debug=True)
-        Logger(*args, **kwargs)
+    kwargs.update(prefix=kwargs.get('prefix', 'debug'), debug=True)
+    Logger(*args, **kwargs)
 
 def printf(s, c='green'):
     Logger.printf(s, color=c)

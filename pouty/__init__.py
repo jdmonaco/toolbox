@@ -16,10 +16,16 @@ from .anybar import AnyBar
 __version__ = '0.1.2'
 
 
-def debug_mode(active=None):
+def quiet_mode(newmode=None):
     """
-    Activate/deactivate or simply query debug-mode logging.
+    Set or toggle quiet mode.
     """
-    if active is None:
-        return console.DEBUG_MODE
-    console.DEBUG_MODE = bool(active)
+    newmode = not console.QUIET_MODE if newmode is None else bool(newmode)
+    console.QUIET_MODE = newmode
+
+def debug_mode(newmode=None):
+    """
+    Set or toggle debug mode.
+    """
+    newmode = not console.DEBUG_MODE if newmode is None else bool(newmode)
+    console.DEBUG_MODE = newmode

@@ -16,6 +16,8 @@ except ImportError:
 import inspect
 import datetime
 import subprocess
+import tempfile
+import shutil
 from importlib import import_module
 from decorator import decorator
 from collections import namedtuple
@@ -67,41 +69,8 @@ def step(_f_, *args, **kwargs):
 
 class AbstractBaseContext(TenkoObject):
 
-    # TODO: Update this frickin' doc string at some point. LOL.
-
     """
-    Smart context for open and reproducible data analysis.
-
-    Class methods:
-    load -- create a new context object for a previous run
-
-    Instance variables:
-    c -- attribute access to the context namespace
-
-    Instance methods:
-    mkdir -- make a subdirectory
-    reveal -- open the run directory in Finder (OS X)
-    out -- send messages to console, logs, notifications, and anybar
-    open_logfile -- open a new log file
-    use_timestamps -- toggle timestamping for log file messages
-    close_logfile -- close the most recent log file
-    set_parallel_profile -- set ipython profile for the parallel client
-    set_datafile -- change the datafile path
-    get_datafile -- open the datafile, creating it if necessary
-    flush_datafile -- flush the datafile
-    close_datafile -- close the datafile
-    create_group -- create a group in the datafile
-    create_table -- create a table in the datafile
-    save_array -- save a numpy array or matrix to the datafile
-    save_simulation -- save Brian simulation output to the datafile
-    read_simulation -- load simulation output into DataFrames
-    set_static_figures -- set/toggle whether figure windows are reused
-    figure -- open a new figure (wrapper for `plt.figure(...)`)
-    savefig -- save a figure (default: most recent)
-    closefig -- close a figure (default: most recent)
-    save_figures -- save all open figure windows
-    close_figures -- close all open figure windows
-    set_figfmt -- change the image format for saving figures
+    Smart, self-documenting, all-inclusive context for reproducible analysis.
     """
 
     def _arg(self, name, value, dflt=None, norm=False, path=False,
@@ -141,19 +110,28 @@ class AbstractBaseContext(TenkoObject):
         resdir=None     , regdir=None  , moduledir=None , h5file=None   ,
         h5proj=None     , ctxdir=None  , admindir=None  , tmpdir=None   ,
         rundir=None     , profile=None , logcolor=None  , figfmt=None   ,
-        staticfigs=None , **kwargs):
-        super().__init__(color=self._arg('logcolor', logcolor, norm=True),
-                **kwargs)
+        staticfigs=None , dryrun=None  , **kwargs):
+        # Set the text color and initialize console output
+        self._logcolor = self._arg('logcolor', logcolor, norm=True)
+        super().__init__(color=self._logcolor, **kwargs)
 
+        # Set key identifying attributes for this context
         self._name = self._arg('__name__', self.__class__.__name__, norm=True)
         self._desc = self._arg('desc', desc, norm=True, optional=True)
         self._tag = self._arg('tag', tag, norm=True, optional=True)
         self._projname = self._arg('projname', projname, norm=True)
         self._version = self._arg('version', version, norm=True)
-
         self._repodir = self._arg('repodir', repodir, path=True)
-        self._rootdir = self._arg('rootdir', rootdir, dflt=os.path.join(
-            PROJDIR, self._projname or 'tenko'), path=True)
+
+        # For a dry run, use a temporary directory as the project root
+        self._dryrun = self._arg('dryrun', dryrun, dflt=False, optional=True)
+        if self._dryrun:
+            _rootdflt = tempfile.TemporaryDirectory(prefix='tenko_').name
+        else:
+            _rootdflt = os.path.join(PROJDIR, self._projname or 'toolbox')
+        self._rootdir = self._arg('rootdir', rootdir, dflt=_rootdflt, path=True)
+
+        # Set up the folder tree for analysis files and output
         self._datadir = self._arg('datadir', datadir, dflt=os.path.join(
             self._rootdir, 'data'))
         self._resdir = self._arg('resdir', resdir, dflt=os.path.join(
@@ -166,7 +144,6 @@ class AbstractBaseContext(TenkoObject):
         if self._desc is not None: ctxdflt += f'-{self._desc}'
         if self._tag is not None: ctxdflt += f'+{self._tag}'
         self._ctxdir = self._arg('ctxdir', ctxdir, dflt=ctxdflt)
-
         self._admindir = self._arg('admindir', admindir, dflt=os.path.join(
             self._ctxdir, 'admin'))
         self._tmpdir = self._arg('tmpdir', tmpdir, dflt=os.path.join(
@@ -216,7 +193,6 @@ class AbstractBaseContext(TenkoObject):
         # Finished initializing!
         Tenko.context = self
         self._save()
-        self.pprint()
 
     def pprint(self):
         """
@@ -398,7 +374,7 @@ class AbstractBaseContext(TenkoObject):
             'tmpdir'     : self._tmpdir,
             'rundir'     : self._rundir,
             'profile'    : self._profile,
-            'logcolor'   : self.out._pref.__name__,
+            'logcolor'   : self._logcolor,
             'figfmt'     : self._figfmt,
             'staticfigs' : self._staticfigs,
         }, INITFILE, base='admin')
@@ -694,7 +670,8 @@ class AbstractBaseContext(TenkoObject):
 
         # Find previous version of python file and generate a diff file
         prev_rundir = os.path.join(self._ctxdir, info['step'])
-        if tag: prev_rundir += '+{}'.format(sluggify(tag))
+        if tag: 
+            prev_rundir += '+{}'.format(sluggify(tag))
         prev_pyfile = os.path.join(prev_rundir, basepy)
         if pyfile_copied and os.path.isfile(prev_pyfile):
             diffpath = os.path.join(self._tmpdir, '{}.diff'.format(basepy))
@@ -825,6 +802,10 @@ class AbstractBaseContext(TenkoObject):
         self._running = False
         self.quit_anybar()
 
+        # Clean up the temporary project root directory if this was a dry run
+        if self._dryrun:
+            shutil.rmtree(self._rootdir)
+
         if not status['OK']:
             raise RuntimeError('Stopping due to exception in {}'.format(step))
 
@@ -873,7 +854,7 @@ class AbstractBaseContext(TenkoObject):
             parallel.set_default_profile(profile)
 
     def get_parallel_client(self, profile=None):
-        return parallel.client(profile)
+        return parallel.client(profile=profile)
 
     def close_parallel_client(self):
         parallel.close()
@@ -1216,7 +1197,7 @@ class AbstractBaseContext(TenkoObject):
         return fig
 
     def savefig(self, label=None, base=None, tag=None, unique=True,
-        tight_padding=None, closeafter=False, quiet=False, **savefig):
+        tight_padding=None, closeafter=False, **savefig):
         """Save an open figure as an image file.
 
         Arguments:
@@ -1254,8 +1235,7 @@ class AbstractBaseContext(TenkoObject):
         self._savefig.update(savefig)
 
         self._figures[label].savefig(path, **self._savefig)
-        if not quiet:
-            self.out(path, prefix='SavedFigure')
+        self.out(path, prefix='SavedFigure')
         self._savefig_path = path
 
         if closeafter:
