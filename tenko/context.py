@@ -17,7 +17,6 @@ import inspect
 import datetime
 import subprocess
 import tempfile
-import shutil
 from importlib import import_module
 from decorator import decorator
 from collections import namedtuple
@@ -124,11 +123,12 @@ class AbstractBaseContext(TenkoObject):
         self._repodir = self._arg('repodir', repodir, path=True)
 
         # For a dry run, use a temporary directory as the project root
+        _rootdflt = os.path.join(PROJDIR, self._projname or 'toolbox')
+        self._dryrun_tempdir = None
         self._dryrun = self._arg('dryrun', dryrun, dflt=False, optional=True)
         if self._dryrun:
-            _rootdflt = tempfile.TemporaryDirectory(prefix='tenko_').name
-        else:
-            _rootdflt = os.path.join(PROJDIR, self._projname or 'toolbox')
+            self._dryrun_tempdir = tempfile.TemporaryDirectory(prefix='tenko_')
+            _rootdflt = self._dryrun_tempdir.name
         self._rootdir = self._arg('rootdir', rootdir, dflt=_rootdflt, path=True)
 
         # Set up the folder tree for analysis files and output
@@ -803,8 +803,8 @@ class AbstractBaseContext(TenkoObject):
         self.quit_anybar()
 
         # Clean up the temporary project root directory if this was a dry run
-        if self._dryrun:
-            shutil.rmtree(self._rootdir)
+        if self._dryrun_tempdir:
+            self._dryrun_tempdir.cleanup()
 
         if not status['OK']:
             raise RuntimeError('Stopping due to exception in {}'.format(step))
