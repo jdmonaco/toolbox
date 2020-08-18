@@ -180,7 +180,8 @@ class ConsolePrinter(object):
         else:
             self._msgf = COL_FUNC[color]
 
-    def __call__(self, *msg, **fmt):
+    def __call__(self, *msg, hideprefix=False, popup=False, debug=False, 
+        error=False, warning=False, **fmt):
         """Display a message with color prefix and multi-line indenting.
 
         Arguments:
@@ -192,17 +193,13 @@ class ConsolePrinter(object):
         quiet -- control whether this message is printed (default: quiet mode)
         debug -- specify where this is a debug message
         error -- specify whether this is an error message
+        warning -- specify whether this is an warning message
         popup -- display the message with a system popup notification
         **fmt -- remaining kwargs provide formating substitutions
         """
         # Handle a quick exit for non-debug-mode and quiet mode
         prefix = fmt.pop('prefix', self._prefix)
-        hideprefix = fmt.pop('hideprefix', False)
-        popup = fmt.pop('popup', False)
         quiet = fmt.pop('quiet', QUIET_MODE)
-        debug = fmt.pop('debug', False)
-        error = fmt.pop('error', False)
-        warning = fmt.pop('warning', False)
         if not (warning or error):
             if quiet or (debug and not DEBUG_MODE):
                 return
