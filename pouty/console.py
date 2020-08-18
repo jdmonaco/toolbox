@@ -196,17 +196,16 @@ class ConsolePrinter(object):
         **fmt -- remaining kwargs provide formating substitutions
         """
         # Handle a quick exit for non-debug-mode and quiet mode
-        quiet = fmt.pop('quiet', QUIET_MODE)
-        debug = fmt.pop('debug', False)
-        if quiet or (debug and not DEBUG_MODE) and not (warning or error):
-            return
-
-        # Parse the keyword arguments
         prefix = fmt.pop('prefix', self._prefix)
         hideprefix = fmt.pop('hideprefix', False)
+        popup = fmt.pop('popup', False)
+        quiet = fmt.pop('quiet', QUIET_MODE)
+        debug = fmt.pop('debug', False)
         error = fmt.pop('error', False)
         warning = fmt.pop('warning', False)
-        popup = fmt.pop('popup', False)
+        if not (warning or error):
+            if quiet or (debug and not DEBUG_MODE):
+                return
 
         # Construct the display prefix
         if debug:
@@ -277,8 +276,10 @@ class ConsolePrinter(object):
                 self._fd.write('[ %s ]  ' % strftime(fmt))
             if prefix != self._prefix and '%' not in prefix and not hideprefix:
                 self._fd.write(pre)
-            if error or warning:
-                self._fd.write('! -> ')
+            if error:
+                self._fd.write('E -> ')
+            elif warning:
+                self._fd.write('W -> ')
 
             # Strip any escape codes (e.g., for color) out of the msg
             msg = re.sub('(\x1b\[\d;\d\dm)|(\x1b\[0m)', '', msg)
