@@ -802,10 +802,6 @@ class AbstractBaseContext(TenkoObject):
         self._running = False
         self.quit_anybar()
 
-        # Clean up the temporary project root directory if this was a dry run
-        if self._dryrun_tempdir:
-            self._dryrun_tempdir.cleanup()
-
         if not status['OK']:
             raise RuntimeError('Stopping due to exception in {}'.format(step))
 
@@ -845,6 +841,13 @@ class AbstractBaseContext(TenkoObject):
         if self._lastcall is None:
             return None
         return self._lastcall['tag']
+
+    def dryrun_cleanup(self):
+        """
+        Clean up the temporary project root directory if this was a dry run.
+        """
+        if self._dryrun_tempdir:
+            self._dryrun_tempdir.cleanup()
 
     # Parallel methods
 
