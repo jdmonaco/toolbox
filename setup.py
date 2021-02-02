@@ -29,5 +29,4 @@ setup(
         'Programming Language :: Python :: 3.6'
     ],
     keywords='data analysis model simulation neuroscience',
-    packages=['analyze', 'floyd', 'specify', 'maps', 'pouty', 'roto',
-              'tenko', 'toolbox'])
+    packages=['maps', 'pouty', 'roto', 'tenko', 'toolbox'])
