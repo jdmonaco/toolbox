@@ -99,8 +99,7 @@ class ConsolePrinter(object):
     _timestamp = False
     _hanging = False
 
-    def __init__(self, prefix='[%Y-%m-%d %H:%M:%S] ', prefix_color=None,
-        message_color=None):
+    def __init__(self, prefix='', prefix_color=None, message_color=None):
         """Create a colorful callable console printing object.
 
         Keyword arguments:
@@ -198,7 +197,7 @@ class ConsolePrinter(object):
         **fmt -- remaining kwargs provide formating substitutions
         """
         # Handle a quick exit for non-debug-mode and quiet mode
-        prefix = fmt.pop('prefix', self._prefix)
+        prefix = fmt.pop('prefix', self._prefix).strip()
         quiet = fmt.pop('quiet', QUIET_MODE)
         if not (warning or error):
             if quiet or (debug and not DEBUG_MODE):
@@ -206,13 +205,18 @@ class ConsolePrinter(object):
 
         # Construct the display prefix
         if debug:
-            prefix = '[%Y-%m-%d+%H:%M+%S.{}] {}'.format(
-                    str(time.time()).split('.')[-1][:6].ljust(6, '0'), prefix)
-        if '%' in prefix:
-            prefix = time.strftime(prefix)
-        pre = f'{prefix}: '
+            prefix = 'Debug'
+        if warning:
+            prefix = 'Warning'
+        if error:
+            prefix = 'Error'
+        if prefix:
+            pre = prefix + ': '
+        else:
+            pre = ''
+        pre_len = len(pre)
         if hideprefix:
-            pre = ' '*len(pre)
+            pre = ' ' * pre_len
 
         # Construct the display message
         if len(msg) == 0:
@@ -222,12 +226,8 @@ class ConsolePrinter(object):
         else:
             msg, args = msg[0], msg[1:]
             msg = msg.format(*args, **fmt)
-
-        # Prepend error/warning titles
-        if error:
-            msg = f'Error: {tilde(msg)}'
-        elif warning:
-            msg = f'Warning: {tilde(msg)}'
+        if os.path.sep in msg:
+            msg = tilde(msg)
 
         # Console color print with prefix and indentation
         if error:
@@ -241,7 +241,7 @@ class ConsolePrinter(object):
         elif debug:
             pref = dimgray
             msgf = smoke
-            console = stderr
+            console = stdout
         else:
             pref = self._pref
             msgf = self._msgf
@@ -251,39 +251,25 @@ class ConsolePrinter(object):
         if self.__class__._hanging:
             self.newline()
 
-        # Print the first line of the message with possible path truncation
-        lines = msg.split('\n')
-        firstline = lines[0].rstrip()
-        if firstline[0] == '/' and os.path.exists(firstline):
-            firstline = tilde(firstline)
-
         # Print remaining lines indented and aligned with the first
-        pre_len = len(pre)
-        print(pref(pre) + msgf(firstline), file=console)
+        lines = msg.split('\n')
+        print(pref(pre) + msgf(lines[0]), file=console)
         for line in lines[1:]:
-            line = line.rstrip()
-            if line and line[0] == '/' and os.path.exists(line):
-                line = tilde(line)
             print(' ' * pre_len + msgf(line), file=console)
 
         # Timestamped output to the file if it's open
         if self._isopen() and not debug:
             if self._timestamp:
-                fmt = '%H:%M:%S %m-%d-%y'
-                self._fd.write('[ %s ]  ' % strftime(fmt))
-            if prefix != self._prefix and '%' not in prefix and not hideprefix:
-                self._fd.write(pre)
+                self._fd.write('[ %s ]  ' % self.timestamp())
             if error:
-                self._fd.write('E -> ')
+                self._fd.write('ERROR -> ')
             elif warning:
-                self._fd.write('W -> ')
+                self._fd.write('WARNING -> ')
+            elif prefix and prefix != self._prefix and not hideprefix:
+                self._fd.write(pre)
 
             # Strip any escape codes (e.g., for color) out of the msg
             msg = re.sub('(\x1b\[\d;\d\dm)|(\x1b\[0m)', '', msg)
-
-            # Apply path truncation
-            if msg and msg[0] == '/' and os.path.exists(msg):
-                msg = tilde(msg)
 
             self._fd.write(msg + '\n')
             self._fd.flush()
@@ -291,13 +277,19 @@ class ConsolePrinter(object):
         # Request a system popup notification
         if popup:
             if self._notifier is None:
-                self._notifier = Notifier(prog=self._prefix, echo=False)
+                self._notifier = Notifier(prog='Console', echo=False)
             if error:
-                self._notifier.notify(msg[7:], pre[:-2], 'Error')
+                self._notifier.notify(msg[7:], 'Console', 'Error')
             elif warning:
-                self._notifier.notify(msg[9:], pre[:-2], 'Warning')
+                self._notifier.notify(msg[9:], 'Console', 'Warning')
             else:
-                self._notifier.notify(msg, pre[:-2])
+                self._notifier.notify(msg, 'Console')
+
+    def timestamp(self):
+        """Formatted date/time string (ms resolution) for current time."""
+        _tfmt = '[%Y-%m-%d+%H:%M+%S.{}]'.format(
+                str(time.time()).split('.')[-1][:6].ljust(6, '0'))
+        return time.strftime(_tfmt)
 
     def debug(self, *msg, **fmt):
         """Output in debug mode."""
@@ -340,13 +332,21 @@ class ConsolePrinter(object):
 
 # Convenience functions
 
-Logger = ConsolePrinter(prefix='%Y-%m-%d+%H:%M:%S ')
+Logger = ConsolePrinter()
 
 def log(*args, **kwargs):
     Logger(*args, **kwargs)
 
 def debug(*args, **kwargs):
-    kwargs.update(prefix=kwargs.get('prefix', 'debug'), debug=True)
+    kwargs.update(debug=True)
+    Logger(*args, **kwargs)
+
+def warn(*args, **kwargs):
+    kwargs.update(warning=True)
+    Logger(*args, **kwargs)
+
+def error(*args, **kwargs):
+    kwargs.update(error=True)
     Logger(*args, **kwargs)
 
 def printf(s, c='green'):
