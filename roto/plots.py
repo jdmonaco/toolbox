@@ -7,21 +7,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .images import array_to_rgba
+from .stats import ci
 
 
-def shaded_error(x, mu, err, **kwds):
+def shaded_ci(x, data, ci_type='empirical', level=0.95, ax=None, **poly):
+    """Plot shaded confidence intervals for row-oriented sample array."""
+    lower, upper = ci(data, which=ci_type, alpha=1-level, axis=0)
+    return shaded_region(x, lower, upper, ax=ax, **poly)
+
+def shaded_error(x, mu, err, **poly):
     """Plot a shaded error interval (mu-err, mu+err) around mu."""
-    return shaded_region(x, mu - err, mu + err, **kwds)
+    return shaded_region(x, mu - err, mu + err, **poly)
 
-def shaded_region(x, lower, upper, ax=None, **poly):
+def shaded_region(x, lower, upper, ax=None, adjustlims=True, **poly):
     """Plot a shaded region [lower, upper] over the range x."""
     if ax is None:
         ax = plt.gca()
     x, lo, hi = list(map(np.array, [x, lower, upper]))
     style = dict(lw=0, fill=True, zorder=-1, clip_box=ax.bbox)
     style.update(poly)
-    P = Polygon(np.c_[np.r_[x,x[::-1]], np.r_[lo, hi[::-1]]], **style)
+    P = Polygon(np.c_[np.r_[x,x[::-1]], np.r_[lo,hi[::-1]]], **style)
     ax.add_artist(P)
+    if adjustlims:
+        ax.set_ylim(bottom=min(ax.get_ylim()[0], lower.min()),
+                    top=max(ax.get_ylim()[1], upper.max()))
     plt.draw()
     return P
 

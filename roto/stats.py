@@ -10,6 +10,8 @@ from scipy.signal import gaussian, convolve
 import numpy as np
 import scipy.stats as st
 
+from pouty import warn
+
 
 Interval = collections.namedtuple("Interval", "lower upper")
 TtestResults = collections.namedtuple("Ttest", "T p")
@@ -129,19 +131,33 @@ def pvalue(obs, null):
 def sem(values):
     return np.std(values, ddof=1) / np.sqrt(len(values))
 
-def empirical_CI(x, alpha=0.05):
-    """Empirical confidence interval for a sample distribution
+def ci(x, which='empirical', alpha=0.05, axis=0):
+    """Compute confidence intervals for an arrays of row-oriented samples.
+    
+    Arguments:
+    which -- 'empirical' | 'parametric'
+    alpha -- two-tailed critical value, equivalent to 1-percentile
+    axis -- array axis over which to compute the confidence intervals
+    """
+    if which == 'empirical':
+        return ci_empirical(x, alpha=alpha, axis=axis)
+    elif which == 'parametric':
+        return ci_parametric(x, alpha=alpha, axis=axis)
+    raise ValueError(f'unknown type "{which}" for confidence intervals')
 
-    Note: percentile = 1 - alpha
+def ci_empirical(x, alpha=0.05, axis=0):
+    """Empirical confidence intervals for array of samples.
     """
     x = np.asarray(x)
-    xs = x.size
-    s = np.argsort(x)
+    xs = x.shape[axis]
+    s = np.argsort(x, axis=axis)
     c = max(0, int((alpha / 2) * xs))
-    return Interval(x[s[c]], x[s[xs-c-1]])
+    if c <= 1:
+        warn('shape {} is low for alpha {}', xs, alpha)
+    return np.take_along_axis(x, np.take(s, [c,xs-c-1], axis), axis)
 
-def confidence_interval(x, alpha=0.05, axis=0):
-    """Inferential confidence interval for sample data.
+def ci_parametric(x, alpha=0.05, axis=0):
+    """Normal (symmetric) confidence intervals for array of samples.
     """
     x = np.asarray(x)
     n = x.shape[axis]
