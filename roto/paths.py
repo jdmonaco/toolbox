@@ -8,9 +8,7 @@ from toolbox import HOME
 
 
 def tilde(p):
-    if p.startswith(HOME):
-        return f'~{p[len(HOME):]}'
-    return p
+    return p.replace(HOME, '~')
 
 def uniquify(stem, ext=None, fmt='{stem!s}-{u:02d}{ext}'):
     """
