@@ -8,12 +8,12 @@ PYthon OUTput → P OUT Y → POUTY.
 * Anybar widget color control
 """
 
-from .console import log, debug, printf, box, hline, ConsolePrinter
+from .console import log, debug, warn, error, printf, box, hline, ConsolePrinter
 from .notifier import Notifier
 from .anybar import AnyBar
 
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 
 def quiet_mode(newmode=None):
