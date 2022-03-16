@@ -1,5 +1,5 @@
 """
-Setup installation file for Toolbox projects.
+Setup installation file for toolbox packages.
 """
 
 from setuptools import setup
@@ -22,11 +22,10 @@ setup(
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6'
+        'Programming Language :: Python :: 3.9',
     ],
-    keywords='data analysis model simulation neuroscience',
-    packages=['arenas', 'pouty', 'roto', 'tenko', 'toolbox'])
+    packages=['toolbox'],
+)

@@ -56,7 +56,7 @@ mvim)
     ;;
 
 install)
-    pip install --no-deps -e "/Users/joe/code/tools" ;;
+    pip install --no-deps -e "/Users/joe/code/toolbox" ;;
 
 uninstall)
     pip uninstall -y toolbox

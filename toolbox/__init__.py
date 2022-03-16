@@ -24,6 +24,7 @@ DATADIR = _os.path.join(HOME, 'data')
 IMACPRO_DPI = int(122.38)  # as scaled
 MACBOOKPRO_DPI = int(150.94)  # as scaled
 LG_ULTRAWIDE_DPI = int(109.68)
+APPLE_PRODISPLAY_XDR_DPI = 218
 STANDARD_DPI = 96
 
 
@@ -31,7 +32,7 @@ STANDARD_DPI = 96
 
 HOST_DPI = dict(
         hilbert_retina = MACBOOKPRO_DPI,
-        hilbert = LG_ULTRAWIDE_DPI,
+        hilbert = APPLE_PRODISPLAY_XDR_DPI,
         hebb = IMACPRO_DPI,
         unknown = STANDARD_DPI,
 )
